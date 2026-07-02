@@ -71,6 +71,30 @@ node tools/pack/bin/tools-pack.mjs linux install --json
 
 `tools-pack linux start` 會等 `desktop-root.json` 就緒標記，直接執行 AppImage 時該標記寫在別處，會出現 60 秒 timeout 的誤判——這不代表 app 有問題。真正的驗證是直接執行 AppImage 並確認主視窗載入：log 出現 `main window did-start-loading url: 'od://app/onboarding'` → `od://app/` → `od://app/projects`，且視窗管理器列得到 `Open Design` 視窗、畫面正常渲染首頁即為成功。log 裡的 `unsupported-platform`（自動更新不支援 Linux）與 dbus/systemd 警告在無桌面服務的環境屬正常噪音。
 
+## 在目標機器執行 AppImage
+
+把 `.AppImage` 複製到任何 x86-64 Linux 直接執行即可（`chmod +x` 後 `./Open-Design-*.AppImage`）。兩個容易被誤判成「壞掉」的正常現象：
+
+- **啟動時終端會噴一行紅字**
+  `Failed to call method: org.freedesktop.systemd1.Manager.StartTransientUnit: ... Invalid unit name or type.`
+  這是 Electron/Chromium 想透過 systemd 註冊 process scope，在沒有完整 user systemd session（或從終端直接跑）的環境會失敗，**不影響運作**。同類噪音還有 `zygote`、`GetTerminationStatus`、`unsupported-platform`。
+- **首次啟動較慢**
+  `--appimage-extract-and-run` 會先把約 200MB 解壓到 `/tmp`，噴完訊息後**還要再等 10–30 秒**視窗才出現，別急著關。（用 `--appimage-extract-and-run` 是因為 FUSE 掛載的 SquashFS 對首次啟動的 daemon 太慢，容易超過 sidecar 的啟動 timeout。）
+
+為了少掉這些困惑，附一支啟動器 [`scripts/run-open-design.sh`](../scripts/run-open-design.sh)，過濾掉已知噪音並提示等待：
+
+```bash
+./run-open-design.sh            # 前景，看得到過濾後的 log
+./run-open-design.sh --quiet    # 背景靜音啟動
+```
+
+核心邏輯就是把噪音用 `grep -vE` 濾掉、其餘照常顯示：
+
+```bash
+NOISE='StartTransientUnit|org.freedesktop.systemd1|dbus/object_proxy|zygote|GetTerminationStatus|unsupported-platform'
+exec stdbuf -oL -eL "$APP" --appimage-extract-and-run 2>&1 | grep --line-buffered -avE "$NOISE"
+```
+
 ## 修正 patch
 
 以下 patch 只動一個檔案 `tools/pack/src/linux.ts`，涵蓋問題 1、3、4、5、6 的修正（問題 2 用 `.npmrc` + 建置順序處理，問題 7 用 `--portable` 命令列參數處理）。完整檔另見 [`patches/open-design-linux-appimage.patch`](../patches/open-design-linux-appimage.patch)。
