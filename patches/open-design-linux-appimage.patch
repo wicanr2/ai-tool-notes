@@ -1,0 +1,112 @@
+diff --git a/tools/pack/src/linux.ts b/tools/pack/src/linux.ts
+index 8b3001ede..c3935120d 100644
+--- a/tools/pack/src/linux.ts
++++ b/tools/pack/src/linux.ts
+@@ -173,9 +173,24 @@ export function buildDockerArgs(
+     `echo "$PNPM_SHA256  ${CONTAINER_PNPM_PATH}.tmp" | sha256sum -c - && ` +
+     `mv ${CONTAINER_PNPM_PATH}.tmp ${CONTAINER_PNPM_PATH} && ` +
+     `chmod +x ${CONTAINER_PNPM_PATH} && ` +
++    // electron-builder's node-module collector spawns a bare `pnpm` via
++    // `/bin/sh -c` and fails with `pnpm: not found` (exit 127) because only the
++    // standalone binary at ${CONTAINER_PNPM_PATH} exists -- there is no command
++    // named `pnpm` on PATH. Symlink it into PNPM_HOME (which is exported onto
++    // PATH below) so `pnpm` resolves for the packaging step.
++    `ln -sf ${CONTAINER_PNPM_PATH} ${CONTAINER_PNPM_HOME}/pnpm && ` +
+     `PNPM_HOME=${CONTAINER_PNPM_HOME} PATH=${CONTAINER_PNPM_HOME}:$PATH ${CONTAINER_PNPM_PATH} env use --global ${CONTAINER_NODE_VERSION} && ` +
+     `export PNPM_HOME=${CONTAINER_PNPM_HOME} PATH=${CONTAINER_PNPM_HOME}:$PATH && ` +
+-    `command -v node >/dev/null`;
++    `command -v node >/dev/null && ` +
++    // The assembled-app production install must use npm, not pnpm: electron-
++    // builder's node-module collector drops top-level transitive deps (e.g.
++    // jszip -> setimmediate) from pnpm layouts, whether hoisted or isolated,
++    // producing a runtime `Cannot find module`. npm yields a plain flat
++    // node_modules with no `.pnpm`, which electron-builder packs verbatim. The
++    // base image strips npm and `pnpm env use` installs a bare Node with no
++    // bundled npm, so install npm globally into PNPM_HOME (on PATH) here.
++    `${CONTAINER_PNPM_PATH} add -g npm && ` +
++    `command -v npm >/dev/null`;
+   const pnpmCmd = CONTAINER_PNPM_PATH;
+   const innerArgs = [
+     `node ${CONTAINER_TOOLS_PACK_CLI_PATH} linux build`,
+@@ -211,12 +226,26 @@ export function buildDockerArgs(
+     `${electronBuilderCache}:/home/builder/.cache/electron-builder`,
+     "-e",
+     "HOME=/home/builder",
++    // The workspace bind-mount carries the host's node_modules (installed by a
++    // different pnpm/store), so the container's `pnpm install --frozen-lockfile`
++    // wants to purge and re-create it. Without a TTY it aborts with
++    // ERR_PNPM_ABORTED_REMOVE_MODULES_DIR_NO_TTY. CI=true is pnpm's documented
++    // opt-in to a non-interactive purge (mirrors a fresh CI checkout).
++    "-e",
++    "CI=true",
+     "-e",
+     "ELECTRON_CACHE=/home/builder/.cache/electron",
+     "-e",
+     "ELECTRON_BUILDER_CACHE=/home/builder/.cache/electron-builder",
+     "-e",
+     `${PRODUCTION_INSTALL_PNPM_BIN_ENV}=${CONTAINER_PNPM_PATH}`,
++    // buildWorkspaceArtifacts runs nested `runPnpm` calls through
++    // createPackageManagerInvocation, which falls back to `corepack pnpm` when
++    // `npm_execpath` is unset. The base image strips corepack, so that fallback
++    // fails with `spawn corepack ENOENT`. Point npm_execpath at the standalone
++    // pnpm this container bootstrapped so those nested builds resolve it directly.
++    "-e",
++    `npm_execpath=${CONTAINER_PNPM_PATH}`,
+   ];
+   if (config.telemetryRelayUrl != null) {
+     dockerArgs.push("-e", `OPEN_DESIGN_TELEMETRY_RELAY_URL=${config.telemetryRelayUrl}`);
+@@ -363,17 +392,17 @@ export type ProductionInstallCommand = { command: string; args: string[] };
+ // `electronuserland/builder:base` (which strips npm, npx, and corepack),
+ // buildDockerArgs sets OD_TOOLS_PACK_PNPM_BIN to the standalone pnpm binary it
+ // bootstrapped, and this resolver routes the install through that binary.
+-// `--config.node-linker=hoisted` keeps the resulting layout flat so
+-// electron-builder packs node_modules the same way it does for npm-installed
+-// trees.
+-export function resolveProductionInstallCommand(env: NodeJS.ProcessEnv): ProductionInstallCommand {
+-  const pnpmBin = env[PRODUCTION_INSTALL_PNPM_BIN_ENV];
+-  if (pnpmBin != null && pnpmBin.length > 0) {
+-    return {
+-      command: pnpmBin,
+-      args: ["install", "--prod", "--no-lockfile", "--config.node-linker=hoisted"],
+-    };
+-  }
++//
++// It always uses npm -- never pnpm -- even in the container. electron-builder
++// 26's node-module collector drops top-level transitive deps (e.g.
++// jszip -> setimmediate) when it flattens a pnpm `.pnpm` layout into the
++// AppImage, regardless of hoisted vs isolated linker, producing a runtime
++// `Cannot find module 'setimmediate'`. npm produces a plain flat node_modules
++// with no `.pnpm`, so electron-builder falls back to copying it verbatim and
++// nothing is dropped. The base image strips npm from PATH, but setupPnpm in
++// buildDockerArgs symlinks the npm bundled with the pnpm-installed Node back
++// onto PATH so this resolves in the container too.
++export function resolveProductionInstallCommand(_env: NodeJS.ProcessEnv): ProductionInstallCommand {
+   return { command: "npm", args: ["install", "--omit=dev", "--no-package-lock"] };
+ }
+ 
+@@ -491,6 +520,17 @@ async function writeAssembledApp(
+     dependencies[tarball.packageName] = `file:${join(paths.tarballsRoot, tarball.fileName)}`;
+   }
+ 
++  // The packed tarballs cross-reference each other by plain version (pnpm pack
++  // rewrites `workspace:*` to `0.12.1`), so a transitive dep like
++  // daemon -> @open-design/release resolves as a registry semver range. npm
++  // satisfies it from the top-level `file:` dep, but pnpm does not treat a
++  // file: dependency as fulfilling a version-range request, so its production
++  // install tries the registry and 404s on the unpublished private packages.
++  // pnpm.overrides forces every request for an internal package -- top-level or
++  // transitive -- onto its local tarball. npm ignores the `pnpm` field, so the
++  // host (npm) install path is unaffected.
++  const overrides: Record<string, string> = { ...dependencies };
++
+   const version = await readPackagedVersion(config);
+   const packageVersion = electronBuilderVersionForAppVersion(version);
+   const packageJson = {
+@@ -499,6 +539,7 @@ async function writeAssembledApp(
+     private: true,
+     main: "main.cjs",
+     dependencies,
++    pnpm: { overrides },
+     description: "Local-first design product: detects your installed code-agent CLI, runs design skills + design systems, streams artifacts into a sandboxed preview.",
+     author: "Open Design Team",
+     repository: {
