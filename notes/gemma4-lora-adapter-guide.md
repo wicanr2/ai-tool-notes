@@ -152,7 +152,17 @@ PEFT 和 vLLM 唯一會讀的設定檔，決定 adapter 怎麼被掛上去。
 - 第 0～23 層：`q` / `k` / `v` / `o` 四個都掛（24 × 4 = 96）
 - 第 24～41 層：只掛 `q` 和 `o`（18 × 2 = 36）
 
-base model 的第 24～41 層本身是有 `k_proj` 和 `v_proj` 的，這裡沒掛是訓練時的選擇，不是架構限制。實務影響見第六節。
+這個分界不是任意的。`google/gemma-4-E4B-it` 的 `config.json` 裡 `num_kv_shared_layers = 18`，而 `42 - 18 = 24`——第 24 層之後全部是 **KV 共享層**：它們不維護自己的 KV cache，注意力讀的是前面最後一個同類型層算出來的 K/V。vLLM 的模型實作在這些層只對 Q 套用 RoPE，K/V 既不做 norm 也不套 RoPE，算出來就丟掉：
+
+```python
+if not self.is_kv_shared_layer:
+    k = self.k_norm(k); q, k = self.rotary_emb(positions, q, k)
+    v = self.v_norm(v)
+else:
+    q = self.rotary_emb(positions, q, k)[0]   # 只有 Q
+```
+
+checkpoint 裡這 18 層仍有 `k_proj` / `v_proj` 權重，但它們的輸出不參與注意力計算。**在這些層對 k/v 掛 LoRA 不會改變任何輸出**，訓練端跳過它們是正確的。這個機制與 KV cache 的關係見 [vLLM 架構與 KV cache](vllm-serving-and-architecture.md)。
 
 ### adapter_model.safetensors
 
