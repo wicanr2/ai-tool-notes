@@ -344,28 +344,39 @@ INFO [serving.py:216] Loaded new LoRA adapter: name 'cils-lora', path '/adapter'
 
 這也順帶排除了第四節提到的 packing 疑慮——本 adapter 有 18 層只掛 `q` 而沒有 `k`/`v`，vLLM 執行期要把這種不完整的切片組合打包進單一 `qkv_proj` 層，實測未出現任何問題。
 
-A/B 對照用同一組工具宣告（一個查詢類、兩個動作類），temperature 設 0，對兩個 model id 發相同請求：
+A/B 對照用同一組工具宣告（一個查詢類、兩個動作類），temperature 設 0，服務啟動時以 `--chat-template` 指向 base model repo 的 `chat_template.jinja`（與訓練一致），對兩個 model id 發相同請求：
 
-| 提問 | base 的選擇 | adapter 的選擇 |
+| 提問 | base | adapter |
 |---|---|---|
 | 查詢某貨架的空儲位 | `get_slots` | `get_slots` |
 | 把某棧板從 A 站搬到 B 站 | `moving_pallet` | `moving_pallet` |
 | 某棧板卡在深料架最裡面 | `retrieve_pallet` | `retrieve_pallet` |
-| 今天天氣如何（工具清單裡沒有對應工具） | 拒答並說明只能處理倉儲任務 | 呼叫了一個不在清單裡的工具 |
+| 今天天氣如何（工具清單裡沒有對應工具） | 拒答 | 拒答 |
+| 你好，你是誰 | 泛用的自我介紹 | 自我介紹並提及可查詢儲位、移動棧板 |
 
-三個領域內的問題兩邊選擇一致——這類明確情境 base model 本來就答得出來，adapter 的價值在交付報告所述的邊界案例上，不在這種一眼可判的題目。
+三個領域內的問題兩邊選擇一致——這類明確情境 base model 本來就答得出來，adapter 的價值在交付報告所述的邊界案例上，不在一眼可判的題目。範圍外提問連續問五次，adapter 五次都拒答，行為穩定。
 
-真正有訊息量的是第四題。**base model 正確地拒絕呼叫工具，adapter 卻捏造了一個工具清單裡根本不存在的函式。** 為了排除是樣板注入的範例，另外檢查了該 chat template——裡面沒有任何硬寫的函式名，所以這個函式是模型自己生出來的。
+多輪的部分，餵進一則 `moving_pallet` 被拒的工具回應（`destination ST-07 is occupied by PLT-0555`）：
 
-這是微調常見的副作用：訓練資料若全是「該呼叫工具」的樣本，模型會學到「走到這個位置就是要發 tool call」，連該說「我沒有這個工具」的場合也不例外。離線評測若只收錄需要工具呼叫的題目，這個退化量不到——評測集裡必須有一批「不該呼叫任何工具」的題目，否則這一類錯誤在上線前是隱形的。
+| | 回應 |
+|---|---|
+| base | 英文複述拒絕原因 |
+| adapter | 繁體中文說明「搬運失敗，因為目的地 ST-07 目前已被棧板 PLT-0555 佔用」 |
 
-這是單一提問下的單次觀察，還不足以估計發生率。要下結論需要一批範圍外提問，統計 adapter 與 base 的拒答率差異。
+兩邊都沒有原樣重試，也都正確傳達了失敗原因。adapter 的語言與領域用詞跟系統其他部分一致，base 則回退成英文。
 
-另有一項限制：這一輪 A/B 是在 vLLM 自帶樣板下量的，而生成起點的前綴會隨樣板不同（見第六節）。**行為層面的觀察必須在與訓練一致的樣板下重量**；掛載與載入層面的結論（第 1～4 項與 adapter 是否生效）不受樣板影響，因為那些是檔案格式與張量對應的事實。
+這一輪只涵蓋單輪決策與一次 rejection 回應。交付報告列出的三個工具選擇錯誤（該用查詢類卻選了動作類）需要對應的邊界情境才能重現，不在這五題的涵蓋範圍內。
 
-多輪的部分，餵給 adapter 一則 `moving_pallet` 被拒的工具回應（`destination is occupied`），它的下一步是呼叫 `get_slots` 查該站點狀態，而不是原樣重試——在這個單一案例上，錯誤後的自我修正行為是合理的。
+原本打算在同一個服務內用 per-request 的 `chat_template` 欄位比較兩份樣板，vLLM 0.25.1 拒絕了：
 
-整趟測試既有服務中斷 5 分 14 秒。
+```
+Chat template is passed with request, but --trust-request-chat-template is not set.
+Refused request with untrusted chat template.
+```
+
+要做這種比較得在啟動時加 `--trust-request-chat-template`，或分兩次啟動各指定一份樣板。下一節的樣板對照就是用後者取得的。
+
+兩趟端到端測試各讓既有服務中斷約 5 分鐘。
 
 ---
 
@@ -419,9 +430,20 @@ vLLM 那份在模型該開始生成的位置多插了一個空的 thought channe
 | HF repo `chat_template.jinja` | `<\|turn>model\n` |
 | vLLM `tool_chat_template_gemma4.jinja` | `<\|turn>model\n<\|channel>thought\n<channel\|>` |
 
-LoRA 學到的是「在訓練時那種文字排列之後接什麼」。換一份樣板，模型面對的就是一個它沒學過的前綴，離線量到的準確率不會轉移過來。另外兩處差異在 `thinking_gate` 的條件與工具回應後的 turn 收尾，同樣會改變 token 序列。
+LoRA 學到的是「在訓練時那種文字排列之後接什麼」。換一份樣板，模型面對的就是一個它沒學過的前綴。另外兩處差異在 `thinking_gate` 的條件與工具回應後的 turn 收尾，同樣會改變 token 序列。
 
-處理方式是跟訓練端確認到檔案層級——要到那份 `.jinja` 本身或它的 commit hash，不是「都是 gemma4 template」這種等級的答案。拿到之後用 `--chat-template` 明確指定，不要依賴預設。
+這個差異的後果實際量過。同一個 adapter、同一組工具宣告、同一個提問、temperature 0，只換服務啟動時的 `--chat-template`：
+
+| 提問 | vLLM 樣板 | HF 樣板（與訓練一致） |
+|---|---|---|
+| 今天天氣如何（工具清單裡沒有天氣工具） | 呼叫 `get_weather`——一個**根本不在工具清單裡**的函式 | 拒答，說明無法提供即時天氣資訊 |
+| `moving_pallet` 被 guard 拒絕後 | 改呼叫 `get_slots` 查該站點 | 用繁體中文說明失敗原因與佔用的棧板編號 |
+
+第一列是這類問題的典型長相：**模型沒有壞，錯的是餵給它的前綴。** 在錯的樣板下，模型憑空生出一個不存在的工具——如果後端沒有嚴格檢查函式名是否在宣告清單內，這會變成一個難以歸因的線上故障。而換回正確的樣板，同樣的提問連續五次都穩定拒答。
+
+排除樣板本身注入範例的可能：檢查過兩份樣板，裡面都沒有硬寫任何函式名。
+
+處理方式是跟訓練端確認到檔案層級——要到那份 `.jinja` 本身或它的 commit hash，不是「都是 gemma4 template」這種等級的答案。拿到之後用 `--chat-template` 明確指定，不要依賴預設，因為預設會隨推論引擎版本改變。
 
 ### 4. base model 用了量化版本
 
