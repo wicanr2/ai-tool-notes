@@ -4,7 +4,7 @@
 
 誰在哪些層做全域注意力、剩下的層用什麼替代、以及 MoE 的稀疏度推到多高——這三個決定就構成了 2026 年這批模型的架構差異。
 
-所有數字取自各模型 HuggingFace repo 的 `config.json` 與官方模型卡，查詢日 **2026-08-18**。
+所有數字取自各模型 HuggingFace repo 的 `config.json` 與官方模型卡，查詢日 **2026-08-18**。其中 gemma-4 全系列、Muse-Glimmer 與 Qwen 3.6/3.8 另以一台實機 Ollama 主機的 GGUF metadata 交叉核對過。
 
 - 相關：[vLLM 架構與 KV cache](vllm-serving-and-architecture.md)、[推論速度怎麼估](llm-decode-throughput-formula.md)、[量化格式](quantization-fp8-nvfp4.md)
 
@@ -14,8 +14,11 @@
 
 | 模型 | 層數 | hidden | 總參數 | 激活參數 | 注意力組成 | 專家 / top-k | context |
 |---|---:|---:|---:|---:|---|---|---:|
+| gemma-4-E2B-it | 35 | 1536 | 5.1 B | 約 2 B | 滑動512 ×28 / 全域 ×7 + KV 共享 20 層 | dense | 128K |
 | gemma-4-E4B-it | 42 | 2560 | 8.0 B | 約 4 B | 滑動512 ×35 / 全域 ×7 + KV 共享 18 層 | dense | 128K |
 | gemma-4-26B-A4B-it | 30 | 2816 | 26.5 B | 4 B | 滑動1024 ×25 / 全域 ×5 | 128 / 8 | 256K |
+| gemma-4-31B-it | 60 | 5376 | 31.3 B | 31.3 B | 滑動1024 ×50 / 全域 ×10 | dense | 256K |
+| **Muse-Glimmer-30B** | 52 | 6656 | 29.8 B | 29.8 B | 滑動2048 ×39 / 全域 ×13 | dense | 128K |
 | Qwen3.6-27B | 64 | 5120 | 27.8 B | 27.8 B | 線性 ×48 / 全域 ×16 | dense | 256K |
 | Qwen3.6-35B-A3B | 40 | 2048 | 36.0 B | 3 B | 線性 ×30 / 全域 ×10 | 256 / 8 + 1 shared | 256K |
 | Qwen3.8-27B | 64 | 5120 | 27.8 B | 27.8 B | 線性 ×48 / 全域 ×16 | dense | 256K |
@@ -31,7 +34,7 @@
 
 ## 四種長 context 策略
 
-### 策略一：滑動視窗交錯（gemma-4）
+### 策略一：滑動視窗交錯（gemma-4、Muse-Glimmer）
 
 大部分層只看最近 N 個 token，少數層做全域注意力。
 
@@ -49,9 +52,40 @@ gemma-4-E4B-it   42 層 · hidden 2560 · 8.0 B
 KV 成本：42 層裡只有 24 層維護 KV，其中僅 4 層是全域注意力
 ```
 
-`gemma-4-26B-A4B-it` 用同樣的 5:1 節奏（滑動視窗放寬到 1024），但沒有 KV 共享，並把 MLP 換成 128 選 8 的 MoE。
+整個 gemma-4 家族用的是同一套骨架，差別在幾個旋鈕怎麼轉：
 
-這個策略的實測效果很好：E4B 每個 token 的 KV 成本只有 22.3 KiB，遠低於「42 層全域」該有的 86 KB（實測數字見 [vLLM 架構與 KV cache](vllm-serving-and-architecture.md)）。
+| | 層數 | hidden | 滑動視窗 | 滑動:全域 | KV heads | KV 共享層 | FFN |
+|---|---:|---:|---:|---|---:|---:|---|
+| E2B | 35 | 1536 | 512 | 28 : 7（4:1） | 1 | **20** | dense 6144 |
+| E4B | 42 | 2560 | 512 | 35 : 7（5:1） | 2 | **18** | dense 10240 |
+| 26B-A4B | 30 | 2816 | 1024 | 25 : 5（5:1） | 8 | 0 | **MoE 128 選 8** |
+| 31B | 60 | 5376 | 1024 | 50 : 10（5:1） | 16 | 0 | dense 21504 |
+
+**E 系列（E2B / E4B）是為端側設計的**：滑動視窗收到 512、KV heads 壓到 1–2 個、再用 KV 共享把一半以上的層的 KV 省掉，並帶有 per-layer embedding（`hidden_size_per_layer_input` 256）與音訊塔。**26B 與 31B 則是資料中心尺寸**：視窗放寬到 1024、KV heads 開到 8–16、不做 KV 共享。
+
+`26B-A4B` 是家族裡唯一的 MoE（128 選 8），`31B` 是純 dense——**兩個尺寸相近的模型走了完全不同的路線**，26B 用稀疏換總容量，31B 用密集換每參數的利用率。
+
+這個策略的實測效果很好：E4B 每個 token 的 KV 成本只有 22.3 KiB，遠低於「42 層全域」該有的量級（實測數字見 [vLLM 架構與 KV cache](vllm-serving-and-architecture.md)）。
+
+#### Muse-Glimmer-30B：同一條路，不同節奏
+
+```
+Muse-Glimmer-30B   52 層 · hidden 6656 · 29.8 B（dense）
+┌────────────────────────────────────────────────────────────────┐
+│ 層 0-2    滑動注意力 (window 2048)  ┐                           │
+│ 層 3      全域注意力                ├─ 3:1 節奏                 │
+│  ⋮                                                              │
+│ 32 heads × head_dim 128，2 個 KV head（GQA 16:1）               │
+│ 每層 FFN：dense 19968                                           │
+│ final_logit_softcapping 20，logit_scale 0.196                   │
+│ 附感知編碼器（perception encoder），支援圖文交錯輸入            │
+└────────────────────────────────────────────────────────────────┘
+滑動 39 層 : 全域 13 層
+```
+
+Meta Superintelligence Lab 於 2026 年 8 月釋出，Apache 2.0，從 Muse Spark 蒸餾而來，明確定位是**在消費級硬體上跑自主代理**——把多步推理、工具呼叫、失敗恢復與多模態理解整合進單一模型，不依賴雲端。
+
+在這份圖鑑裡它是個有意思的反例：**尺寸與 gemma-4-31B、Qwen3.8-27B 相近，卻選擇 dense 而非 MoE**，而且把滑動視窗開到 2048（是 gemma-4 的兩倍）、全域層比例拉到 25%（3:1，高於 gemma 的 5:1）。這組取捨指向的是「長對話裡的推理連貫性」而不是「總參數容量」——與它的 agentic 定位一致。
 
 ### 策略二：線性注意力混合（Qwen 3.5+、Kimi K3）
 
@@ -150,6 +184,34 @@ MiniMax-M2.7   62 層 · hidden 3072 · 228.7 B 總 / 約 10 B 激活
 **shared expert 成為標配。** DeepSeek、Qwen、Kimi 都有一到兩個「每個 token 都會經過」的共享專家，用來承載通用能力，讓 routed experts 專注在分化。gemma-4 與 MiniMax 沒有。
 
 **top-k 大多維持在 6–8，Kimi 是例外。** 選 16 個專家配 896 個總數，是把「細粒度專家」推得最遠的——每個專家更小更專門，靠選更多個來組合。
+
+---
+
+## 一個容易算錯的地方：全域層與滑動層的 head_dim 不同
+
+估 KV cache 時最常見的做法是「層數 × kv_heads × head_dim × 2 × 精度 × context」。這個公式套在 gemma-4 上會低估，因為它的 `config.json` 裡有兩個 head_dim：
+
+| | `head_dim`（滑動層） | `global_head_dim`（全域層） | KV heads | KV 共享層 |
+|---|---:|---:|---:|---:|
+| gemma-4-E2B | 256 | **512** | 1 | 20 |
+| gemma-4-E4B | 256 | **512** | 2 | 18 |
+| gemma-4-26B-A4B | 256 | **512** | 8 | 0 |
+| gemma-4-31B | 256 | **512** | 16 | 0 |
+
+**真正隨 context 線性成長的是全域層，而它們的每個 KV head 大了一倍。** 這在 GGUF metadata 裡也對得上——`gemma4.attention.key_length = 512` 對應全域層，`key_length_swa = 256` 對應滑動視窗層。
+
+以 E4B 為例，實際隨 context 成長的那部分是：
+
+```
+擁有 KV 的層 = 42 − 18 = 24（第 0–23 層）
+其中全域層   = 4（5:1 節奏下落在第 5、11、17、23 層）
+每層每 token = 2（K+V）× 2 kv_heads × 512 global_head_dim × 2 bytes = 4,096 bytes
+隨 context 成長的部分 = 4 × 4,096 = 16 KiB / token
+```
+
+其餘 20 個滑動層各自只保留 512 個 token 的視窗，開銷固定不隨 context 變動。兩者相加與 vLLM 實測的 22.3 KiB/token 量級相符。
+
+**估算時要分開處理這兩類層**：全域層乘 context，滑動層乘視窗大小。把 42 層全部當成全域層去算，會高估將近十倍；用 `head_dim` 256 去算全域層，則會低估一半。這兩個錯誤方向相反，湊在一起有時會意外接近正確答案——但那是巧合，換一個模型就不成立了。
 
 ---
 

@@ -50,7 +50,7 @@ GPU 張數 = ceil( 需放進顯存的部分 / 單卡顯存 )
 <div class="row"><label>總參數量<span class="hint">B（十億）</span></label><input type="number" id="totalP" step="0.1"></div>
 <div class="row"><label>每參數位元組<span class="hint">bf16=2、FP8=1、Q4≈0.53</span></label><input type="number" id="bpp" step="0.01"></div>
 <div class="row"><label>隨 context 成長的 KV 層數<span class="hint">只算全域注意力層；滑動視窗與線性注意力層的 KV 不隨 context 成長</span></label><input type="number" id="kvLayers" step="1"></div>
-<div class="row"><label>kv_heads × head_dim</label><input type="number" id="kvDim" step="1"></div>
+<div class="row"><label>kv_heads × head_dim<span class="hint">用全域層的 head_dim；gemma-4 為 512</span></label><input type="number" id="kvDim" step="1"></div>
 <div class="row"><label>KV 精度（bytes）</label><input type="number" id="kvBytes" step="0.5"></div>
 <div class="row"><label>Context 長度</label><input type="number" id="ctx" step="1024"></div>
 <div class="row"><label>同時併發數</label><input type="number" id="batch" step="1" min="1"></div>

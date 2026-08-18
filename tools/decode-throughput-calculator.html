@@ -45,7 +45,7 @@ offload：tok/s = 1 / ( GPU端位元組/(GPU頻寬×MBU) + CPU端位元組/(DRAM
 <section class="group">
 <h2>KV cache</h2>
 <div class="row"><label>擁有 KV 的層數<span class="hint">扣掉共享 KV 的層</span></label><input type="number" id="kvLayers" step="1" min="0"></div>
-<div class="row"><label>KV head 數 × head_dim<span class="hint">例：2 × 256 就填 512</span></label><input type="number" id="kvDim" step="1" min="0"></div>
+<div class="row"><label>KV head 數 × head_dim<span class="hint">用<b>全域層</b>的 head_dim。gemma-4 的全域層是 512 不是 256</span></label><input type="number" id="kvDim" step="1" min="0"></div>
 <div class="row"><label>KV 精度（bytes）<span class="hint">bf16 填 2、fp8 填 1</span></label><input type="number" id="kvBytes" step="0.5" min="0.5" max="4"></div>
 <div class="row"><label>Context 長度（token）</label><input type="number" id="ctx" step="256" min="0"></div>
 </section>
