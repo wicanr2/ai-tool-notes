@@ -24,7 +24,7 @@ AI 工具與相關工程實務的筆記彙整。
 - [要跑這些模型最少需要多少硬體，在台灣要花多少錢](notes/llm-hardware-cost-2026.md) — 從模型參數推硬體需求的公式（含「只有全域注意力層的 KV 才隨 context 成長」這個常算錯的地方），配 2026-08-18 市價與來源連結，給出五個檔次的新台幣報價（8B 級 NT$8.8 萬 / 26B 級 NT$12.3 萬 / DeepSeek-V4-Flash offload NT$38.6 萬 / 全 GPU NT$302 萬）；指出 DDR5 一年漲 500% 已讓 offload 配置的成本重心從顯卡移到記憶體，並算出自建與租用在不同利用率下的回本點。
   - 互動估算器：[本地 LLM 建置成本估算器](tools/build-cost-calculator.html)（可即時抓匯率、單價可自訂並記住）
 
-- [模型設定檔的每個數字在算什麼](notes/model-config-fields-reference.md) — 把 `config.json` 的欄位接回注意力與 FFN 的實際計算：先寫出 Q/K/V/O 與 FFN 的矩陣形狀，再逐組說明骨架、注意力、MoE、MLA 低秩壓縮、SSM 線性層、位置編碼等欄位各自決定什麼；附 HuggingFace `config.json`／HF API metadata／GGUF metadata 三套來源的欄位對照表（同一件事三種命名，GGUF 的 `key_length` vs `key_length_swa` 反而比 HF 更明確）；以及六個容易踩的地方——`head_dim` 不等於 `hidden_size / heads`、多模態欄位藏在 `text_config`、參數量不能乘 2 要按 dtype 算、`feed_forward_length = 0` 代表純 MoE。
+- [讀懂模型設定檔：從欄位到部署決策](notes/model-config-fields-reference.md) — 在不下載權重的前提下回答「塞不塞得下、有多快、引擎撐不撐得住」。先寫出 Q/K/V/O 與 FFN 的矩陣形狀讓每個欄位對應到計算裡的位置，再逐項列出欄位的**英文全名、用途、以及這個數字變了會怎樣**（骨架／注意力／MoE／MLA 與 NSA 稀疏注意力／SSM 線性層／位置編碼／推測解碼）；三段可直接執行並附實測輸出的程式碼——算顯存、算速度、判斷相容性；HF `config.json`／HF API metadata／GGUF 三套來源的欄位對照；縮寫全表與六個容易踩的地方。
 
 ### Gemma-4 / chat_template 系列
 

@@ -147,7 +147,16 @@ DeepSeek-V4-Flash   43 層 · hidden 4096 · 290.9 B 總 / 13 B 激活
 Pro 版同構放大：61 層 / hidden 7168 / 128 heads / 384 專家 / 49 B 激活
 ```
 
-`num_key_value_heads = 1` 是這個設計最極端的地方——一般 GQA 會留 4 到 8 個 KV head，MLA 直接壓到 1，靠低秩潛在表示補回表達力。這是它能撐到 1M context 的主因。
+`num_key_value_heads = 1` 是這個設計最極端的地方——一般 GQA 會留 4 到 8 個 KV head，MLA 直接壓到 1，靠低秩潛在表示補回表達力。
+
+但真正讓它撐到 1M context 的不只是 MLA。config 裡還有一組 `index_n_heads 64`、`index_head_dim 128`、`index_topk 512` 與逐層的 `compress_ratios`——這是 **NSA**（Native Sparse Attention）：一個輕量索引器先挑出最相關的 token，注意力只在那些 token 上算。
+
+```
+index_topk = 512  →  不管 context 是 4K 還是 1M，
+                     每個 query 都只注意 512 個被選中的 token
+```
+
+**MLA 把每個 token 的 KV 存得更小，NSA 讓要讀的 token 數量根本不隨 context 成長。** 兩者相乘才是 1M 的來源。ktransformers 的部署文件把這條路徑直接稱為「NSA sparse MLA」，可以互相佐證。代價是這套機制需要推論引擎專門實作，支援度比標準注意力窄得多。
 
 ### 策略四：不做特殊處理（MiniMax-M2.7）
 
