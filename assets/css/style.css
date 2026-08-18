@@ -1,0 +1,217 @@
+@charset "utf-8";
+
+/* ------------------------------------------------------------------
+   色彩系統：背景色 / 結構色 / 關鍵路徑色 / 狀態色 / 中性色
+   每個顏色在全站語意固定：
+     --ink      正文與標題
+     --rule     結構（分隔線、表格線、邊界）
+     --key      關鍵路徑（連結、當前位置、需要被讀到的那一項）
+     --ok/warn/bad  狀態
+   刻意不用藍白配色與任何漸層。
+   ------------------------------------------------------------------ */
+:root{
+  --paper:#fdfcfa;
+  --paper-sunk:#f4f2ed;
+  --ink:#1c1a17;
+  --ink-2:#4a4741;
+  --muted:#7a766e;
+  --rule:#dedbd3;
+  --rule-strong:#b9b5ab;
+  --key:#9d3b12;
+  --key-2:#c25a2c;
+  --ok:#2f6b46;
+  --warn:#8a6100;
+  --bad:#9e2a22;
+
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,"Noto Sans TC",
+         "PingFang TC","Microsoft JhengHei",sans-serif;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
+
+  --measure:44rem;
+  --gutter:clamp(1.15rem,4vw,2.6rem);
+}
+
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --paper:#16150f;
+    --paper-sunk:#1e1c16;
+    --ink:#eae7df;
+    --ink-2:#c2beb4;
+    --muted:#8f8b81;
+    --rule:#33302a;
+    --rule-strong:#524d44;
+    --key:#e0824f;
+    --key-2:#c96c39;
+    --ok:#6fbf8e;
+    --warn:#d0a45e;
+    --bad:#e8827a;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#16150f; --paper-sunk:#1e1c16;
+  --ink:#eae7df; --ink-2:#c2beb4; --muted:#8f8b81;
+  --rule:#33302a; --rule-strong:#524d44;
+  --key:#e0824f; --key-2:#c96c39;
+  --ok:#6fbf8e; --warn:#d0a45e; --bad:#e8827a;
+}
+
+*,*::before,*::after{box-sizing:border-box}
+
+html{-webkit-text-size-adjust:100%}
+body{
+  margin:0;
+  background:var(--paper);
+  color:var(--ink);
+  font-family:var(--sans);
+  font-size:16.5px;
+  line-height:1.78;
+  text-rendering:optimizeLegibility;
+}
+
+/* ---------- 頁首：一條細線，不用色塊、不用漸層 ---------- */
+header.site{border-bottom:1px solid var(--rule)}
+header.site .bar{
+  max-width:var(--measure);
+  margin:0 auto;
+  padding:1.05rem var(--gutter) .95rem;
+  display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;
+  align-items:baseline;justify-content:space-between;
+}
+.wordmark{
+  font-weight:650;font-size:.94rem;letter-spacing:.03em;
+  color:var(--ink);text-decoration:none;
+}
+.wordmark:hover{color:var(--key)}
+header.site nav{display:flex;gap:1.15rem;flex-wrap:wrap}
+header.site nav a{
+  font-size:.83rem;color:var(--muted);text-decoration:none;
+  padding-bottom:2px;border-bottom:1px solid transparent;
+}
+header.site nav a:hover{color:var(--key);border-bottom-color:var(--key)}
+
+/* ---------- 正文 ---------- */
+main{
+  max-width:var(--measure);
+  margin:0 auto;
+  padding:2.6rem var(--gutter) 4.5rem;
+}
+
+h1,h2,h3,h4{line-height:1.35;font-weight:640;letter-spacing:-.006em}
+
+h1{
+  font-size:1.92rem;margin:.2rem 0 1.5rem;letter-spacing:-.018em;
+  padding-bottom:.9rem;border-bottom:2px solid var(--ink);
+}
+/* 二級標題靠「上方細線 + 字級」建立層級，不用色塊 */
+h2{
+  font-size:1.24rem;margin:3.1rem 0 1rem;
+  padding-top:1.05rem;border-top:1px solid var(--rule);
+}
+h3{font-size:1.02rem;margin:2.1rem 0 .65rem;color:var(--ink)}
+h4{font-size:.94rem;margin:1.5rem 0 .5rem;color:var(--ink-2)}
+
+p{margin:0 0 1.15rem}
+main > p:first-of-type{color:var(--ink-2)}
+
+a{color:var(--key);text-decoration:none;border-bottom:1px solid var(--rule-strong)}
+a:hover{border-bottom-color:var(--key)}
+
+strong,b{font-weight:660;color:var(--ink)}
+em{font-style:italic}
+
+ul,ol{margin:0 0 1.15rem;padding-left:1.35rem}
+li{margin:.28rem 0}
+li::marker{color:var(--muted)}
+
+hr{
+  border:0;border-top:1px solid var(--rule);
+  margin:2.6rem 0;
+}
+
+/* 引文：一條側線，不填色不加圓角 */
+blockquote{
+  margin:1.4rem 0;padding:.15rem 0 .15rem 1.1rem;
+  border-left:2px solid var(--rule-strong);
+  color:var(--ink-2);
+}
+blockquote p:last-child{margin-bottom:0}
+
+/* ---------- 程式碼：直角、細框、淡填色、無陰影 ---------- */
+code,kbd,samp{
+  font-family:var(--mono);font-size:.855em;
+}
+:not(pre) > code{
+  background:var(--paper-sunk);
+  border:1px solid var(--rule);
+  padding:.08em .34em;
+  border-radius:2px;
+  word-break:break-word;
+}
+pre{
+  margin:1.35rem 0;padding:.95rem 1.05rem;
+  background:var(--paper-sunk);
+  border:1px solid var(--rule);
+  border-left:2px solid var(--rule-strong);
+  border-radius:2px;
+  overflow-x:auto;
+  font-size:.845rem;line-height:1.62;
+}
+pre code{background:none;border:0;padding:0;font-size:1em}
+
+/* ---------- 表格：只有細分隔線，沒有外框與彩色表頭 ---------- */
+.tablewrap{overflow-x:auto;margin:1.4rem 0}
+table{
+  border-collapse:collapse;width:100%;
+  font-size:.895rem;line-height:1.6;
+}
+thead th{
+  text-align:left;font-weight:560;font-size:.79rem;
+  letter-spacing:.045em;color:var(--muted);
+  padding:0 .85rem .45rem 0;
+  border-bottom:1px solid var(--rule-strong);
+  white-space:nowrap;
+}
+tbody td{
+  padding:.46rem .85rem .46rem 0;
+  border-bottom:1px solid var(--rule);
+  vertical-align:top;
+}
+tbody tr:last-child td{border-bottom:1px solid var(--rule-strong)}
+/* kramdown 的右對齊欄用於數字：等寬 + 尾端對齊 */
+th[style*="right"],td[style*="right"]{
+  text-align:right;font-variant-numeric:tabular-nums;
+  font-family:var(--mono);font-size:.845rem;
+  padding-right:0;white-space:nowrap;
+}
+table code{font-size:.82em}
+
+img{max-width:100%;height:auto}
+
+/* ---------- 頁尾 ---------- */
+footer.site{
+  border-top:1px solid var(--rule);
+  max-width:var(--measure);
+  margin:0 auto;
+  padding:1.5rem var(--gutter) 3rem;
+  color:var(--muted);font-size:.83rem;
+}
+footer.site p{margin:.2rem 0}
+footer.site a{color:var(--muted);border-bottom-color:var(--rule)}
+footer.site a:hover{color:var(--key)}
+
+/* ---------- 工具頁共用（計算器沿用同一套語彙） ---------- */
+.wide{max-width:64rem}
+
+@media (max-width:600px){
+  body{font-size:16px;line-height:1.72}
+  h1{font-size:1.6rem}
+  h2{font-size:1.14rem}
+  main{padding-top:2rem}
+}
+
+@media print{
+  header.site nav,footer.site{display:none}
+  body{background:#fff;color:#000;font-size:11pt}
+  a{color:#000}
+  pre,:not(pre) > code{background:#f6f6f6}
+}

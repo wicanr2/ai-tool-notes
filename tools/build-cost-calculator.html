@@ -3,106 +3,50 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>本地 LLM 建置成本估算器</title>
-<style>
-:root{
-  --bg:#fff; --fg:#1b1f24; --muted:#5b6672; --line:#dfe3e8;
-  --card:#f7f8fa; --accent:#0b6bcb; --accent-soft:#e8f1fb;
-  --ok:#1a7f4b; --warn:#a35a00; --bad:#b3261e;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
-    --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
-    --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
-  --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
-  --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
-}
-*{box-sizing:border-box}
-body{margin:0;background:var(--bg);color:var(--fg);line-height:1.6;
-  font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;}
-.wrap{max-width:1120px;margin:0 auto;padding:2rem 1.1rem 4rem}
-h1{font-size:1.6rem;margin:0 0 .3rem;letter-spacing:-.01em}
-.sub{color:var(--muted);margin:0 0 1.2rem;font-size:.95rem}
-.sub a,footer a,.src a{color:var(--accent)}
-.formula{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
-  border-radius:6px;padding:.85rem 1rem;font-family:var(--mono);font-size:.83rem;
-  overflow-x:auto;white-space:pre;margin:0 0 1.2rem}
-.fxbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;background:var(--accent-soft);
-  border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem;margin-bottom:1.2rem;font-size:.88rem}
-.fxbar button{font:inherit;font-size:.84rem;cursor:pointer;padding:.35rem .8rem;border-radius:6px;
-  border:1px solid var(--accent);background:var(--accent);color:#fff}
-.fxbar button:disabled{opacity:.55;cursor:default}
-.fxbar .st{color:var(--muted);font-size:.82rem}
-.presets{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.3rem}
-.presets button{font:inherit;font-size:.83rem;cursor:pointer;padding:.4rem .8rem;border-radius:999px;
-  border:1px solid var(--line);background:var(--card);color:var(--fg)}
-.presets button:hover{border-color:var(--accent);color:var(--accent)}
-.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.1rem}
-fieldset{border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem 1.1rem;margin:0;background:var(--card)}
-legend{padding:0 .45rem;font-weight:600;font-size:.9rem;color:var(--accent)}
-.row{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;margin:.5rem 0}
-.row label{font-size:.87rem}
-.row .hint{display:block;color:var(--muted);font-size:.75rem;line-height:1.35}
-input[type=number],select{font:inherit;font-family:var(--mono);font-size:.85rem;width:9rem;
-  padding:.28rem .45rem;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--fg)}
-select{width:12rem}
-.out{margin-top:1.4rem;border:1px solid var(--line);border-radius:8px;overflow:hidden}
-.out h2{margin:0;padding:.7rem 1.1rem;font-size:.95rem;background:var(--accent-soft);border-bottom:1px solid var(--line)}
-.big{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line)}
-.big div{background:var(--bg);padding:.9rem 1.1rem}
-.big .k{font-size:.77rem;color:var(--muted);margin-bottom:.2rem}
-.big .v{font-family:var(--mono);font-size:1.3rem;font-weight:600;letter-spacing:-.02em}
-.big .u{font-size:.78rem;color:var(--muted)}
-.tblwrap{overflow-x:auto}
-table{width:100%;border-collapse:collapse;font-size:.85rem}
-th,td{padding:.45rem 1.1rem;text-align:left;border-bottom:1px solid var(--line)}
-th{color:var(--muted);font-weight:500;font-size:.79rem}
-td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
-.verdict{padding:.8rem 1.1rem;font-size:.87rem;border-bottom:1px solid var(--line)}
-.verdict.ok{color:var(--ok)}.verdict.warn{color:var(--warn)}.verdict.bad{color:var(--bad)}
-.verdict b{font-family:var(--mono)}
-.src{margin-top:1.6rem;font-size:.83rem;color:var(--muted)}
-.src table{font-size:.82rem}
-footer{margin-top:2rem;color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:1rem}
-@media (max-width:520px){input[type=number],select{width:100%}.row{grid-template-columns:1fr;gap:.2rem}}
-</style>
+<title>本地 LLM 建置成本估算器 · AI 工具與工程實務筆記</title>
+<link rel="stylesheet" href="/ai-tool-notes/assets/css/style.css">
+<link rel="stylesheet" href="/ai-tool-notes/assets/css/tool.css">
 </head>
 <body>
-<div class="wrap">
 
+<header class="site">
+  <div class="bar">
+    <a class="wordmark" href="/ai-tool-notes/">AI 工具與工程實務筆記</a>
+    <nav>
+      <a href="/ai-tool-notes/tools/decode-throughput-calculator.html">速度估算</a>
+      <a href="/ai-tool-notes/tools/build-cost-calculator.html">成本估算</a>
+      <a href="https://github.com/wicanr2/ai-tool-notes">原始碼</a>
+    </nav>
+  </div>
+</header>
+
+<main class="tool">
 <h1>本地 LLM 建置成本估算器</h1>
-<p class="sub">
-從模型參數推出硬體需求，再換算建置成本與「自建 vs 租用」的回本點。
-推導與價格來源見 <a href="../notes/llm-hardware-cost-2026.md">要跑這些模型最少需要多少硬體</a>。
-</p>
 
-<pre class="formula">顯存需求 = 參數量 × 每參數位元組 + KV cache
+<p>從模型參數推出硬體需求，再換算建置成本與「自建 vs 租用」的回本點。
+推導與價格來源見 <a href="/ai-tool-notes/notes/llm-hardware-cost-2026.html">要跑這些模型最少需要多少硬體</a>。</p>
+
+<div class="formula">顯存需求 = 參數量 × 每參數位元組 + KV cache
 KV cache = 2 × 全域注意力層數 × (kv_heads × head_dim) × KV精度 × context × 併發數
 GPU 張數 = ceil( 需放進顯存的部分 / 單卡顯存 )
 系統記憶體 = offload 的權重 × 1.25（作業系統、頁面對齊、pinned 額外開銷）
 建置成本 = GPU單價×張數 + RAM每GB×容量 + 平台 + 儲存
-回本月數 = 自建總價 / (雲端每小時 × 730 × 利用率)</pre>
+回本月數 = 自建總價 / (雲端每小時 × 730 × 利用率)</div>
 
-<div class="fxbar">
+<div class="strip">
   <span>匯率 1 USD =</span>
-  <input type="number" id="fx" step="0.0001" style="width:7rem">
+  <input type="number" id="fx" step="0.0001" style="width:6.5rem">
   <span>TWD</span>
   <button id="fxBtn">抓取今日匯率</button>
-  <span class="st" id="fxSt"></span>
+  <span class="note" id="fxSt"></span>
 </div>
 
 <div class="presets" id="presets"></div>
 
-<div class="grid">
+<div class="groups">
 
-<fieldset>
-<legend>模型與用途</legend>
+<section class="group">
+<h2>模型與用途</h2>
 <div class="row"><label>總參數量<span class="hint">B（十億）</span></label><input type="number" id="totalP" step="0.1"></div>
 <div class="row"><label>每參數位元組<span class="hint">bf16=2、FP8=1、Q4≈0.53</span></label><input type="number" id="bpp" step="0.01"></div>
 <div class="row"><label>隨 context 成長的 KV 層數<span class="hint">只算全域注意力層；滑動視窗與線性注意力層的 KV 不隨 context 成長</span></label><input type="number" id="kvLayers" step="1"></div>
@@ -110,95 +54,87 @@ GPU 張數 = ceil( 需放進顯存的部分 / 單卡顯存 )
 <div class="row"><label>KV 精度（bytes）</label><input type="number" id="kvBytes" step="0.5"></div>
 <div class="row"><label>Context 長度</label><input type="number" id="ctx" step="1024"></div>
 <div class="row"><label>同時併發數</label><input type="number" id="batch" step="1" min="1"></div>
-</fieldset>
+</section>
 
-<fieldset>
-<legend>部署策略</legend>
-<div class="row">
-  <label>策略</label>
-  <select id="strategy">
-    <option value="gpu">全部進顯存（純 GPU）</option>
-    <option value="offload">DRAM offload（權重放系統記憶體）</option>
-  </select>
-</div>
+<section class="group">
+<h2>部署策略</h2>
+<div class="row"><label>策略</label>
+  <select id="strategy"><option value="gpu">全部進顯存（純 GPU）</option><option value="offload">DRAM offload（權重放系統記憶體）</option></select></div>
 <div class="row"><label>顯卡型號</label><select id="gpu"></select></div>
 <div class="row"><label>單卡顯存 GB</label><input type="number" id="vram" step="1"></div>
 <div class="row"><label>顯卡單價 USD</label><input type="number" id="gpuPrice" step="10"></div>
-<div class="row">
-  <label>offload 時留在顯存的比例<span class="hint">熱門專家 + attention，MoE 常見 10–30%</span></label>
-  <input type="number" id="gpuFrac" step="0.05" min="0" max="1">
-</div>
-</fieldset>
+<div class="row"><label>offload 時留在顯存的比例<span class="hint">熱門專家 + attention，MoE 常見 10–30%</span></label><input type="number" id="gpuFrac" step="0.05" min="0" max="1"></div>
+</section>
 
-<fieldset>
-<legend>零件單價（USD，可自行更新）</legend>
+<section class="group">
+<h2>零件單價（USD，可自行更新）</h2>
 <div class="row"><label>DDR5 消費級 每 GB</label><input type="number" id="ramGB" step="0.1"></div>
 <div class="row"><label>DDR5 RDIMM 每 GB<span class="hint">伺服器/HEDT 平台用</span></label><input type="number" id="rdimmGB" step="0.1"></div>
-<div class="row">
-  <label>平台等級</label>
+<div class="row"><label>平台等級</label>
   <select id="platform">
     <option value="900">消費級 AM5／LGA1851（雙通道）</option>
     <option value="3500">HEDT Threadripper／EPYC（8 通道 + AVX512）</option>
     <option value="15000">雙路伺服器（8 卡）</option>
-  </select>
-</div>
+  </select></div>
 <div class="row"><label>平台價格 USD</label><input type="number" id="platPrice" step="50"></div>
 <div class="row"><label>儲存 USD<span class="hint">NVMe，模型權重要放得下</span></label><input type="number" id="storage" step="50"></div>
-</fieldset>
+</section>
 
-<fieldset>
-<legend>租用對照</legend>
+<section class="group">
+<h2>租用對照</h2>
 <div class="row"><label>雲端每小時 USD<span class="hint">AWS g6e.xlarge 為 1.861</span></label><input type="number" id="cloudHr" step="0.01"></div>
 <div class="row"><label>預期利用率<span class="hint">0.2 = 每天約 5 小時</span></label><input type="number" id="util" step="0.05" min="0.01" max="1"></div>
-</fieldset>
+</section>
 
 </div>
 
-<div class="out">
+<div class="result">
   <h2>估算結果</h2>
-  <div class="big">
+  <div class="figures">
     <div><div class="k">建置總價</div><div class="v" id="oTwd">–</div><div class="u" id="oUsd">&nbsp;</div></div>
     <div><div class="k">需要顯卡</div><div class="v" id="oGpu">–</div><div class="u">張</div></div>
     <div><div class="k">系統記憶體</div><div class="v" id="oRam">–</div><div class="u">GB</div></div>
     <div><div class="k">租用回本</div><div class="v" id="oPay">–</div><div class="u">個月</div></div>
   </div>
   <div id="verdicts"></div>
-  <div class="tblwrap"><table>
-    <thead><tr><th>項目</th><th style="text-align:right">USD</th><th style="text-align:right">TWD</th><th>說明</th></tr></thead>
+  <div class="tablewrap breakdown"><table>
+    <thead><tr><th>項目</th><th class="n">USD</th><th class="n">TWD</th><th>說明</th></tr></thead>
     <tbody id="detail"></tbody>
   </table></div>
 </div>
 
-<div class="src">
-  <h3 style="font-size:.95rem;color:var(--fg);margin-bottom:.4rem">價格基準與資料來源</h3>
-  <p>預設單價的基準日為 <b id="baseDate">2026-08-18</b>。2025–2026 年記憶體與顯卡價格波動極大（DDR5 一年漲約 500%），
-  <b>使用前請點開下列來源核對，並直接改上面的欄位</b>——改過的值會存在瀏覽器裡，下次開啟自動帶入。</p>
-  <div class="tblwrap"><table>
-    <thead><tr><th>項目</th><th>基準日單價</th><th>來源</th></tr></thead>
-    <tbody>
-      <tr><td>RTX 5090 32GB（新）</td><td class="n">$4,300–4,900</td><td><a href="https://videocardprices.com/card/nvidia-rtx-5090/" target="_blank" rel="noopener">videocardprices.com</a> · <a href="https://www.techpowerup.com/351508/nvidia-rtx-50-series-median-prices-jump-up-to-41-in-august-with-msrp-now-a-distant-dream" target="_blank" rel="noopener">TechPowerUp</a></td></tr>
-      <tr><td>RTX 4090 24GB（二手）</td><td class="n">$2,000+</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-5090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a></td></tr>
-      <tr><td>RTX 3090 24GB（二手）</td><td class="n">$600–1,050</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-3090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a> · <a href="https://www.xda-developers.com/used-rtx-3090-still-best-for-local-ai-in-value/" target="_blank" rel="noopener">XDA</a></td></tr>
-      <tr><td>NVIDIA L40S 48GB</td><td class="n">$7,500–10,000</td><td><a href="https://www.thundercompute.com/blog/nvidia-l40-pricing" target="_blank" rel="noopener">Thunder Compute</a> · <a href="https://gpucost.org/gpu/l40s" target="_blank" rel="noopener">GPU Cost</a></td></tr>
-      <tr><td>DDR5 消費級</td><td class="n">約 $13.5 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/ram-price-index-2026-lowest-price-on-ddr5-and-ddr4-memory-of-all-capacities" target="_blank" rel="noopener">Tom's Hardware 價格追蹤</a></td></tr>
-      <tr><td>DDR5 RDIMM</td><td class="n">約 $13.6 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/memory-prices-climb-500-percent-in-12-months-up-to-10x-the-lowest-ever-tracked-prices-128gb-of-ddr5-now-usd3-399" target="_blank" rel="noopener">Tom's Hardware</a></td></tr>
-      <tr><td>AWS g6e 每小時</td><td class="n">$1.861（xlarge）<br>$30.13（48xlarge）</td><td><a href="https://instances.vantage.sh/aws/ec2/g6e.xlarge" target="_blank" rel="noopener">Vantage</a></td></tr>
-      <tr><td>USD/TWD 匯率</td><td class="n">即時抓取</td><td><a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">exchangerate-api.com</a>（每日更新，免費層）</td></tr>
-    </tbody>
-  </table></div>
-</div>
+<section class="sources">
+<h2>價格基準與資料來源</h2>
+<p>預設單價的基準日為 <b id="baseDate">2026-08-18</b>。2025–2026 年記憶體與顯卡價格波動極大（DDR5 一年漲約 500%），
+<b>使用前請點開下列來源核對，並直接改上面的欄位</b>——改過的值會存在瀏覽器裡，下次開啟自動帶入。</p>
+<div class="tablewrap"><table>
+  <thead><tr><th>項目</th><th class="n">基準日單價</th><th>來源</th></tr></thead>
+  <tbody>
+    <tr><td>RTX 5090 32GB（新）</td><td class="n">$4,300–4,900</td><td><a href="https://videocardprices.com/card/nvidia-rtx-5090/" target="_blank" rel="noopener">videocardprices</a> · <a href="https://www.techpowerup.com/351508/nvidia-rtx-50-series-median-prices-jump-up-to-41-in-august-with-msrp-now-a-distant-dream" target="_blank" rel="noopener">TechPowerUp</a></td></tr>
+    <tr><td>RTX 4090 24GB（二手）</td><td class="n">$2,000+</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-5090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a></td></tr>
+    <tr><td>RTX 3090 24GB（二手）</td><td class="n">$600–1,050</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-3090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a> · <a href="https://www.xda-developers.com/used-rtx-3090-still-best-for-local-ai-in-value/" target="_blank" rel="noopener">XDA</a></td></tr>
+    <tr><td>NVIDIA L40S 48GB</td><td class="n">$7,500–10,000</td><td><a href="https://www.thundercompute.com/blog/nvidia-l40-pricing" target="_blank" rel="noopener">Thunder Compute</a> · <a href="https://gpucost.org/gpu/l40s" target="_blank" rel="noopener">GPU Cost</a></td></tr>
+    <tr><td>DDR5 消費級</td><td class="n">約 $13.5 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/ram-price-index-2026-lowest-price-on-ddr5-and-ddr4-memory-of-all-capacities" target="_blank" rel="noopener">Tom's Hardware 價格追蹤</a></td></tr>
+    <tr><td>DDR5 RDIMM</td><td class="n">約 $13.6 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/memory-prices-climb-500-percent-in-12-months-up-to-10x-the-lowest-ever-tracked-prices-128gb-of-ddr5-now-usd3-399" target="_blank" rel="noopener">Tom's Hardware</a></td></tr>
+    <tr><td>AWS g6e 每小時</td><td class="n">$1.861 / $30.13</td><td><a href="https://instances.vantage.sh/aws/ec2/g6e.xlarge" target="_blank" rel="noopener">Vantage</a></td></tr>
+    <tr><td>USD/TWD 匯率</td><td class="n">即時抓取</td><td><a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">exchangerate-api.com</a></td></tr>
+  </tbody>
+</table></div>
+</section>
 
-<footer>
-  <p><b>這個估算沒有涵蓋：</b>電費與散熱、機櫃與網路、作業系統與軟體授權、保固與維修、以及顯卡在台灣的實際通路加價
-  （進口稅與營業稅後，本地零售價通常比美金換算高 10–20%）。</p>
-  <p>
-    <a href="../notes/llm-hardware-cost-2026.md">成本推導說明</a> ·
-    <a href="decode-throughput-calculator.html">Decode 速度估算器</a> ·
-    <a href="../">回筆記首頁</a>
-  </p>
+<section class="caveats">
+<h2>這個估算沒有涵蓋</h2>
+<p>電費與散熱、機櫃與網路、作業系統與軟體授權、保固與維修，以及顯卡在台灣的實際通路加價
+（進口稅與營業稅後，本地零售價通常比美金換算高 10–20%）。</p>
+<p><a href="/ai-tool-notes/notes/llm-hardware-cost-2026.html">成本推導說明</a> ·
+<a href="/ai-tool-notes/tools/decode-throughput-calculator.html">Decode 速度估算器</a></p>
+</section>
+</main>
+
+<footer class="site">
+  <p>LLM serving、LoRA 微調、chat template、逆向工程與開發流程的實作筆記</p>
+  <p><a href="https://github.com/wicanr2/ai-tool-notes">github.com/wicanr2/ai-tool-notes</a></p>
 </footer>
-
-</div>
 
 <script>
 "use strict";

@@ -3,235 +3,108 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>LLM Decode 速度估算器</title>
-<style>
-:root{
-  --bg:#ffffff; --fg:#1b1f24; --muted:#5b6672; --line:#dfe3e8;
-  --card:#f7f8fa; --accent:#0b6bcb; --accent-soft:#e8f1fb;
-  --ok:#1a7f4b; --warn:#a35a00; --bad:#b3261e;
-  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
-}
-@media (prefers-color-scheme:dark){
-  :root:not([data-theme="light"]){
-    --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
-    --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
-    --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
-  }
-}
-:root[data-theme="dark"]{
-  --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
-  --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
-  --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
-}
-*{box-sizing:border-box}
-body{
-  margin:0; background:var(--bg); color:var(--fg);
-  font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;
-  line-height:1.6; -webkit-text-size-adjust:100%;
-}
-.wrap{max-width:1080px; margin:0 auto; padding:2rem 1.1rem 4rem}
-h1{font-size:1.6rem; margin:0 0 .3rem; letter-spacing:-.01em}
-.sub{color:var(--muted); margin:0 0 1.6rem; font-size:.95rem}
-.sub a{color:var(--accent)}
-.formula{
-  background:var(--card); border:1px solid var(--line); border-left:3px solid var(--accent);
-  border-radius:6px; padding:.8rem 1rem; font-family:var(--mono);
-  font-size:.86rem; overflow-x:auto; white-space:pre; margin:0 0 1.6rem;
-}
-.presets{display:flex; flex-wrap:wrap; gap:.5rem; margin-bottom:1.6rem}
-.presets button{
-  font:inherit; font-size:.84rem; cursor:pointer; padding:.4rem .8rem;
-  border:1px solid var(--line); background:var(--card); color:var(--fg); border-radius:999px;
-}
-.presets button:hover{border-color:var(--accent); color:var(--accent)}
-.grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(310px,1fr)); gap:1.1rem}
-fieldset{
-  border:1px solid var(--line); border-radius:8px; padding:1rem 1.1rem 1.2rem; margin:0;
-  background:var(--card);
-}
-legend{padding:0 .45rem; font-weight:600; font-size:.9rem; color:var(--accent)}
-.row{display:grid; grid-template-columns:1fr auto; gap:.5rem; align-items:center; margin:.55rem 0}
-.row label{font-size:.88rem}
-.row .hint{display:block; color:var(--muted); font-size:.76rem; line-height:1.35}
-input[type=number],select{
-  font:inherit; font-family:var(--mono); font-size:.86rem; width:9.5rem; padding:.3rem .45rem;
-  border:1px solid var(--line); border-radius:5px; background:var(--bg); color:var(--fg);
-}
-select{width:11.5rem}
-input[type=range]{width:11.5rem; accent-color:var(--accent)}
-.rangeval{font-family:var(--mono); font-size:.82rem; color:var(--muted); text-align:right}
-.out{margin-top:1.6rem; border:1px solid var(--line); border-radius:8px; overflow:hidden}
-.out h2{margin:0; padding:.7rem 1.1rem; font-size:.95rem; background:var(--accent-soft); border-bottom:1px solid var(--line)}
-.big{display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:1px; background:var(--line)}
-.big div{background:var(--bg); padding:1rem 1.1rem}
-.big .k{font-size:.78rem; color:var(--muted); margin-bottom:.25rem}
-.big .v{font-family:var(--mono); font-size:1.45rem; font-weight:600; letter-spacing:-.02em}
-.big .u{font-size:.8rem; color:var(--muted); font-weight:400}
-table{width:100%; border-collapse:collapse; font-size:.86rem}
-.tblwrap{overflow-x:auto}
-th,td{padding:.5rem 1.1rem; text-align:left; border-bottom:1px solid var(--line)}
-th{color:var(--muted); font-weight:500; font-size:.8rem}
-td.n{font-family:var(--mono); text-align:right; white-space:nowrap}
-.verdict{padding:.85rem 1.1rem; font-size:.88rem; border-bottom:1px solid var(--line)}
-.verdict.ok{color:var(--ok)} .verdict.warn{color:var(--warn)} .verdict.bad{color:var(--bad)}
-.verdict b{font-family:var(--mono)}
-footer{margin-top:2.2rem; color:var(--muted); font-size:.82rem; border-top:1px solid var(--line); padding-top:1rem}
-footer a{color:var(--accent)}
-footer ul{padding-left:1.1rem; margin:.5rem 0}
-@media (max-width:520px){
-  input[type=number],select,input[type=range]{width:100%}
-  .row{grid-template-columns:1fr; gap:.25rem}
-}
-</style>
+<title>LLM Decode 速度估算器 · AI 工具與工程實務筆記</title>
+<link rel="stylesheet" href="/ai-tool-notes/assets/css/style.css">
+<link rel="stylesheet" href="/ai-tool-notes/assets/css/tool.css">
 </head>
 <body>
-<div class="wrap">
 
+<header class="site">
+  <div class="bar">
+    <a class="wordmark" href="/ai-tool-notes/">AI 工具與工程實務筆記</a>
+    <nav>
+      <a href="/ai-tool-notes/tools/decode-throughput-calculator.html">速度估算</a>
+      <a href="/ai-tool-notes/tools/build-cost-calculator.html">成本估算</a>
+      <a href="https://github.com/wicanr2/ai-tool-notes">原始碼</a>
+    </nav>
+  </div>
+</header>
+
+<main class="tool">
 <h1>LLM Decode 速度估算器</h1>
-<p class="sub">
-自迴歸生成的每個 token 都要把權重讀過一遍，所以 decode 階段受記憶體頻寬限制，與算力幾乎無關。
-推導與驗證方法見
-<a href="../notes/llm-decode-throughput-formula.html">推論速度怎麼估</a>。
-</p>
 
-<pre class="formula">單卡：   tok/s = 頻寬 × MBU / 每 token 讀取位元組
+<p>自迴歸生成的每個 token 都要把權重讀過一遍，所以 decode 階段受記憶體頻寬限制，與算力幾乎無關。
+推導與驗證方法見 <a href="/ai-tool-notes/notes/llm-decode-throughput-formula.html">推論速度怎麼估</a>。</p>
+
+<div class="formula">單卡：   tok/s = 頻寬 × MBU / 每 token 讀取位元組
 offload：tok/s = 1 / ( GPU端位元組/(GPU頻寬×MBU) + CPU端位元組/(DRAM頻寬×MBU) )
-每 token 讀取位元組 = 激活參數 × 每參數位元組 + KV cache 讀取</pre>
+每 token 讀取位元組 = 激活參數 × 每參數位元組 + KV cache 讀取</div>
 
 <div class="presets" id="presets"></div>
 
-<div class="grid">
+<div class="groups">
 
-<fieldset>
-<legend>模型</legend>
-<div class="row">
-  <label>總參數量<span class="hint">決定顯存夠不夠。MoE 填總參數</span></label>
-  <input type="number" id="totalP" step="0.1" min="0">
-</div>
-<div class="row">
-  <label>每 token 激活參數<span class="hint">dense 填與總參數相同；MoE 填激活量</span></label>
-  <input type="number" id="actP" step="0.1" min="0">
-</div>
-<div class="row">
-  <label>量化格式<span class="hint">決定每個參數佔幾個位元組</span></label>
-  <select id="quant"></select>
-</div>
-<div class="row">
-  <label>每參數位元組<span class="hint">選「自訂」時可直接改</span></label>
-  <input type="number" id="bpp" step="0.01" min="0.1" max="4">
-</div>
-</fieldset>
+<section class="group">
+<h2>模型</h2>
+<div class="row"><label>總參數量<span class="hint">決定顯存夠不夠。MoE 填總參數</span></label><input type="number" id="totalP" step="0.1" min="0"></div>
+<div class="row"><label>每 token 激活參數<span class="hint">dense 填與總參數相同；MoE 填激活量</span></label><input type="number" id="actP" step="0.1" min="0"></div>
+<div class="row"><label>量化格式</label><select id="quant"></select></div>
+<div class="row"><label>每參數位元組<span class="hint">選「自訂」時可直接改</span></label><input type="number" id="bpp" step="0.01" min="0.1" max="4"></div>
+</section>
 
-<fieldset>
-<legend>KV cache（長 context 才顯著）</legend>
-<div class="row">
-  <label>擁有 KV 的層數<span class="hint">扣掉共享 KV 的層</span></label>
-  <input type="number" id="kvLayers" step="1" min="0">
-</div>
-<div class="row">
-  <label>KV head 數 × head_dim<span class="hint">例：2 × 256 就填 512</span></label>
-  <input type="number" id="kvDim" step="1" min="0">
-</div>
-<div class="row">
-  <label>KV 精度（bytes）<span class="hint">bf16 填 2、fp8 填 1</span></label>
-  <input type="number" id="kvBytes" step="0.5" min="0.5" max="4">
-</div>
-<div class="row">
-  <label>Context 長度（token）</label>
-  <input type="number" id="ctx" step="256" min="0">
-</div>
-</fieldset>
+<section class="group">
+<h2>KV cache</h2>
+<div class="row"><label>擁有 KV 的層數<span class="hint">扣掉共享 KV 的層</span></label><input type="number" id="kvLayers" step="1" min="0"></div>
+<div class="row"><label>KV head 數 × head_dim<span class="hint">例：2 × 256 就填 512</span></label><input type="number" id="kvDim" step="1" min="0"></div>
+<div class="row"><label>KV 精度（bytes）<span class="hint">bf16 填 2、fp8 填 1</span></label><input type="number" id="kvBytes" step="0.5" min="0.5" max="4"></div>
+<div class="row"><label>Context 長度（token）</label><input type="number" id="ctx" step="256" min="0"></div>
+</section>
 
-<fieldset>
-<legend>硬體</legend>
-<div class="row">
-  <label>GPU</label>
-  <select id="gpu"></select>
-</div>
-<div class="row">
-  <label>GPU 記憶體頻寬<span class="hint">GB/s</span></label>
-  <input type="number" id="gpuBW" step="1" min="1">
-</div>
-<div class="row">
-  <label>GPU 顯存<span class="hint">GB，用來判斷放不放得下</span></label>
-  <input type="number" id="vram" step="1" min="1">
-</div>
-<div class="row">
-  <label>GPU 張數<span class="hint">tensor parallel</span></label>
-  <input type="number" id="nGpu" step="1" min="1" value="1">
-</div>
-<div class="row">
-  <label>MBU<span class="hint">實際達到的頻寬佔峰值比例，實務 0.6–0.8</span></label>
-  <input type="range" id="mbu" min="0.3" max="1" step="0.05">
-</div>
+<section class="group">
+<h2>硬體</h2>
+<div class="row"><label>GPU</label><select id="gpu"></select></div>
+<div class="row"><label>記憶體頻寬<span class="hint">GB/s</span></label><input type="number" id="gpuBW" step="1" min="1"></div>
+<div class="row"><label>單卡顯存<span class="hint">GB</span></label><input type="number" id="vram" step="1" min="1"></div>
+<div class="row"><label>GPU 張數<span class="hint">tensor parallel</span></label><input type="number" id="nGpu" step="1" min="1" value="1"></div>
+<div class="row"><label>MBU<span class="hint">實際達到的頻寬佔峰值比例，實務 0.6–0.8</span></label><input type="range" id="mbu" min="0.3" max="1" step="0.05"></div>
 <div class="row"><label></label><div class="rangeval" id="mbuOut"></div></div>
-</fieldset>
+</section>
 
-<fieldset>
-<legend>Offload（模型放不進顯存時）</legend>
-<div class="row">
-  <label>啟用 offload</label>
-  <select id="offload">
-    <option value="0">關閉（全部在顯存）</option>
-    <option value="1">開啟（部分權重放系統記憶體）</option>
-  </select>
-</div>
-<div class="row">
-  <label>留在 GPU 的比例<span class="hint">通常是 attention + shared expert，約 20–40%</span></label>
-  <input type="range" id="gpuFrac" min="0" max="1" step="0.05">
-</div>
+<section class="group">
+<h2>Offload</h2>
+<div class="row"><label>啟用 offload</label>
+  <select id="offload"><option value="0">關閉（全部在顯存）</option><option value="1">開啟（部分權重放系統記憶體）</option></select></div>
+<div class="row"><label>留在 GPU 的比例<span class="hint">通常是 attention + shared expert，約 20–40%</span></label><input type="range" id="gpuFrac" min="0" max="1" step="0.05"></div>
 <div class="row"><label></label><div class="rangeval" id="gpuFracOut"></div></div>
-<div class="row">
-  <label>系統記憶體</label>
-  <select id="dram"></select>
-</div>
-<div class="row">
-  <label>DRAM 頻寬<span class="hint">GB/s。專家在 CPU 就地算時的瓶頸</span></label>
-  <input type="number" id="dramBW" step="1" min="1">
-</div>
-</fieldset>
-
-<fieldset>
-<legend>負載</legend>
-<div class="row">
-  <label>同時處理的請求數<span class="hint">批次會攤提權重讀取，總吞吐上升但單使用者速度不變</span></label>
-  <input type="number" id="batch" step="1" min="1" value="1">
-</div>
-</fieldset>
+<div class="row"><label>系統記憶體</label><select id="dram"></select></div>
+<div class="row"><label>DRAM 頻寬<span class="hint">GB/s。專家在 CPU 就地算時的瓶頸</span></label><input type="number" id="dramBW" step="1" min="1"></div>
+<div class="row"><label>同時處理的請求數<span class="hint">批次攤提權重讀取，總吞吐上升但單使用者速度不變</span></label><input type="number" id="batch" step="1" min="1" value="1"></div>
+</section>
 
 </div>
 
-<div class="out">
+<div class="result">
   <h2>估算結果</h2>
-  <div class="big">
+  <div class="figures">
     <div><div class="k">單一使用者速度</div><div class="v" id="oTps">–</div><div class="u">tok/s</div></div>
-    <div><div class="k">總吞吐（全部請求）</div><div class="v" id="oTotal">–</div><div class="u">tok/s</div></div>
+    <div><div class="k">總吞吐</div><div class="v" id="oTotal">–</div><div class="u">tok/s</div></div>
     <div><div class="k">每 token 讀取</div><div class="v" id="oBytes">–</div><div class="u">GB</div></div>
     <div><div class="k">生成 1000 token</div><div class="v" id="oTime">–</div><div class="u">秒</div></div>
   </div>
   <div id="verdicts"></div>
-  <div class="tblwrap"><table>
-    <thead><tr><th>項目</th><th style="text-align:right">數值</th><th>說明</th></tr></thead>
+  <div class="tablewrap breakdown"><table>
+    <thead><tr><th>項目</th><th class="n">數值</th><th>說明</th></tr></thead>
     <tbody id="detail"></tbody>
   </table></div>
 </div>
 
-<footer>
-  <p><b>這個估算沒有涵蓋：</b></p>
-  <ul>
-    <li>推測解碼（speculative decoding）可在頻寬不變下把有效速度提高一到三倍</li>
-    <li>MoE offload 的專家存取是隨機而非循序的，實際 DRAM 頻寬會低於規格值，建議把結果再打七到八折</li>
-    <li>prefill 時間（首個 token 的延遲）由算力決定，不在此公式範圍</li>
-    <li>沒有硬體原生支援的量化格式，每次運算都要 dequant，MBU 會明顯下降</li>
-  </ul>
-  <p>
-    公式推導、驗證方法與實測對照：<a href="../notes/llm-decode-throughput-formula.html">推論速度怎麼估</a> ·
-    量化格式如何決定「每參數位元組」：<a href="../notes/quantization-fp8-nvfp4.html">量化格式：FP8、NVFP4</a> ·
-    <a href="../">回筆記首頁</a>
-  </p>
-</footer>
+<section class="caveats">
+<h2>這個估算沒有涵蓋</h2>
+<ul>
+<li>推測解碼（speculative decoding）可在頻寬不變下把有效速度提高一到三倍</li>
+<li>MoE offload 的專家存取是隨機而非循序的，實際 DRAM 頻寬會低於規格值，建議把結果再打七到八折</li>
+<li>prefill 時間（首個 token 的延遲）由算力決定，不在此公式範圍</li>
+<li>沒有硬體原生支援的量化格式，每次運算都要 dequant，MBU 會明顯下降</li>
+</ul>
+<p><a href="/ai-tool-notes/notes/llm-decode-throughput-formula.html">公式推導與驗證方法</a> ·
+<a href="/ai-tool-notes/notes/quantization-fp8-nvfp4.html">量化格式如何決定「每參數位元組」</a></p>
+</section>
+</main>
 
-</div>
+<footer class="site">
+  <p>LLM serving、LoRA 微調、chat template、逆向工程與開發流程的實作筆記</p>
+  <p><a href="https://github.com/wicanr2/ai-tool-notes">github.com/wicanr2/ai-tool-notes</a></p>
+</footer>
 
 <script>
 "use strict";

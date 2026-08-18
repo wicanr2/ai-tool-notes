@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="{{ site.lang | default: 'zh-Hant' }}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>{% if page.title and page.title != site.title %}{{ page.title }} · {{ site.title }}{% else %}{{ site.title }}{% endif %}</title>
+{% if page.description or site.description %}<meta name="description" content="{{ page.description | default: site.description }}">{% endif %}
+<link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
+</head>
+<body>
+
+<header class="site">
+  <div class="bar">
+    <a class="wordmark" href="{{ '/' | relative_url }}">{{ site.title }}</a>
+    <nav>
+      <a href="{{ '/tools/decode-throughput-calculator.html' | relative_url }}">速度估算</a>
+      <a href="{{ '/tools/build-cost-calculator.html' | relative_url }}">成本估算</a>
+      <a href="https://github.com/wicanr2/ai-tool-notes">原始碼</a>
+    </nav>
+  </div>
+</header>
+
+<main>{{ content }}</main>
+
+<footer class="site">
+  <p>{{ site.description }}</p>
+  <p><a href="https://github.com/wicanr2/ai-tool-notes">github.com/wicanr2/ai-tool-notes</a></p>
+</footer>
+
+<script>
+// kramdown 不會替表格加捲動容器，寬表在窄螢幕會撐破版面
+document.querySelectorAll("main table").forEach(function(t){
+  if (t.parentElement.classList.contains("tablewrap")) return;
+  var w = document.createElement("div");
+  w.className = "tablewrap";
+  t.parentNode.insertBefore(w, t);
+  w.appendChild(t);
+});
+</script>
+
+</body>
+</html>
