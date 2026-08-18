@@ -63,7 +63,8 @@ input[type=number],select{
   border:0;border-bottom:1px solid var(--rule-strong);border-radius:0;
   text-align:right;
 }
-select{width:12.5rem;text-align:left}
+/* 留出箭頭的位置，否則長選項的尾字會被壓在箭頭底下 */
+select{width:13.5rem;text-align:left;padding-right:1.3rem}
 input[type=number]:focus,select:focus{
   outline:none;border-bottom-color:var(--key);
 }

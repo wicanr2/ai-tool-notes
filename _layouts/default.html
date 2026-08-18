@@ -7,7 +7,7 @@
 {% if page.description or site.description %}<meta name="description" content="{{ page.description | default: site.description }}">{% endif %}
 <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
 </head>
-<body>
+<body{% if page.path == 'README.md' %} class="home"{% endif %}>
 
 <header class="site">
   <div class="bar">
@@ -28,14 +28,49 @@
 </footer>
 
 <script>
-// kramdown 不會替表格加捲動容器，寬表在窄螢幕會撐破版面
-document.querySelectorAll("main table").forEach(function(t){
-  if (t.parentElement.classList.contains("tablewrap")) return;
-  var w = document.createElement("div");
-  w.className = "tablewrap";
-  t.parentNode.insertBefore(w, t);
-  w.appendChild(t);
-});
+(function(){
+  var main = document.querySelector("main");
+  if (!main) return;
+
+  // kramdown 不會替表格加捲動容器，寬表在窄螢幕會撐破版面
+  main.querySelectorAll("table").forEach(function(t){
+    if (t.parentElement.classList.contains("tablewrap")) return;
+    var w = document.createElement("div");
+    w.className = "tablewrap";
+    t.parentNode.insertBefore(w, t);
+    w.appendChild(t);
+    // 欄數多或內容撐破正文欄寬時，才讓表格往兩側破格
+    var row = t.querySelector("tr");
+    var cols = row ? row.children.length : 0;
+    if (cols >= 5 || t.scrollWidth > w.clientWidth + 1) w.classList.add("wide");
+  });
+
+  // 筆記頁章節多（多為 6–9 節），開頭補一份目錄；索引頁與工具頁不加
+  if (!location.pathname.includes("/notes/")) return;
+  var h1 = main.querySelector("h1");
+  var hs = Array.prototype.filter.call(
+    main.querySelectorAll("h2"), function(h){ return h.id; });
+  if (!h1 || hs.length < 4) return;
+
+  var nav = document.createElement("nav");
+  nav.className = "toc";
+  nav.setAttribute("aria-label", "章節目錄");
+  var lab = document.createElement("span");
+  lab.className = "toc-label";
+  lab.textContent = "本篇章節";
+  var ol = document.createElement("ol");
+  hs.forEach(function(h){
+    var li = document.createElement("li");
+    var a = document.createElement("a");
+    a.href = "#" + h.id;
+    a.textContent = h.textContent;
+    li.appendChild(a);
+    ol.appendChild(li);
+  });
+  nav.appendChild(lab);
+  nav.appendChild(ol);
+  h1.parentNode.insertBefore(nav, h1.nextSibling);
+})();
 </script>
 
 </body>

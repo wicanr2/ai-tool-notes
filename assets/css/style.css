@@ -8,6 +8,9 @@
      --key      關鍵路徑（連結、當前位置、需要被讀到的那一項）
      --ok/warn/bad  狀態
    刻意不用藍白配色與任何漸層。
+
+   垂直節奏以 --lh（一個行高）為單位換算，確保「段落間距 > 行距」
+   在任何字級下都成立；中文字身比拉丁字母大，行高與字距都比英文版寬。
    ------------------------------------------------------------------ */
 :root{
   --paper:#fdfcfa;
@@ -27,8 +30,9 @@
          "PingFang TC","Microsoft JhengHei",sans-serif;
   --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,"Liberation Mono",monospace;
 
-  --measure:44rem;
-  --gutter:clamp(1.15rem,4vw,2.6rem);
+  --measure:43rem;
+  --gutter:clamp(1.2rem,4vw,2.8rem);
+  --lh:1.95;
 }
 
 @media (prefers-color-scheme:dark){
@@ -57,14 +61,15 @@
 
 *,*::before,*::after{box-sizing:border-box}
 
-html{-webkit-text-size-adjust:100%}
+html{-webkit-text-size-adjust:100%;font-size:17.5px}
 body{
   margin:0;
   background:var(--paper);
   color:var(--ink);
   font-family:var(--sans);
-  font-size:16.5px;
-  line-height:1.78;
+  font-size:1rem;
+  line-height:var(--lh);
+  letter-spacing:.01em;
   text-rendering:optimizeLegibility;
 }
 
@@ -73,18 +78,18 @@ header.site{border-bottom:1px solid var(--rule)}
 header.site .bar{
   max-width:var(--measure);
   margin:0 auto;
-  padding:1.05rem var(--gutter) .95rem;
+  padding:1.15rem var(--gutter) 1.05rem;
   display:flex;flex-wrap:wrap;gap:.6rem 1.4rem;
   align-items:baseline;justify-content:space-between;
 }
 .wordmark{
-  font-weight:650;font-size:.94rem;letter-spacing:.03em;
+  font-weight:650;font-size:.92rem;letter-spacing:.03em;
   color:var(--ink);text-decoration:none;
 }
 .wordmark:hover{color:var(--key)}
-header.site nav{display:flex;gap:1.15rem;flex-wrap:wrap}
+header.site nav{display:flex;gap:1.25rem;flex-wrap:wrap}
 header.site nav a{
-  font-size:.83rem;color:var(--muted);text-decoration:none;
+  font-size:.82rem;color:var(--muted);text-decoration:none;
   padding-bottom:2px;border-bottom:1px solid transparent;
 }
 header.site nav a:hover{color:var(--key);border-bottom-color:var(--key)}
@@ -93,24 +98,30 @@ header.site nav a:hover{color:var(--key);border-bottom-color:var(--key)}
 main{
   max-width:var(--measure);
   margin:0 auto;
-  padding:2.6rem var(--gutter) 4.5rem;
+  padding:3rem var(--gutter) 5rem;
 }
 
-h1,h2,h3,h4{line-height:1.35;font-weight:640;letter-spacing:-.006em}
+h1,h2,h3,h4{
+  line-height:1.4;font-weight:640;letter-spacing:-.004em;
+  scroll-margin-top:1.5rem;
+  text-wrap:balance;
+}
 
 h1{
-  font-size:1.92rem;margin:.2rem 0 1.5rem;letter-spacing:-.018em;
-  padding-bottom:.9rem;border-bottom:2px solid var(--ink);
+  font-size:1.95rem;margin:.2rem 0 1.9rem;letter-spacing:-.016em;
+  padding-bottom:1rem;border-bottom:2px solid var(--ink);
 }
 /* 二級標題靠「上方細線 + 字級」建立層級，不用色塊 */
 h2{
-  font-size:1.24rem;margin:3.1rem 0 1rem;
-  padding-top:1.05rem;border-top:1px solid var(--rule);
+  font-size:1.38rem;margin:4rem 0 1.3rem;
+  padding-top:1.25rem;border-top:1px solid var(--rule);
 }
-h3{font-size:1.02rem;margin:2.1rem 0 .65rem;color:var(--ink)}
-h4{font-size:.94rem;margin:1.5rem 0 .5rem;color:var(--ink-2)}
+h3{font-size:1.12rem;margin:2.8rem 0 .85rem;color:var(--ink)}
+h4{font-size:1rem;margin:2rem 0 .6rem;color:var(--ink-2)}
+/* 標題後緊接的第一段不再多疊一次上距 */
+h1 + p,h2 + p,h3 + p,h4 + p{margin-top:0}
 
-p{margin:0 0 1.15rem}
+p{margin:0 0 1.6rem}
 main > p:first-of-type{color:var(--ink-2)}
 
 a{color:var(--key);text-decoration:none;border-bottom:1px solid var(--rule-strong)}
@@ -119,81 +130,185 @@ a:hover{border-bottom-color:var(--key)}
 strong,b{font-weight:660;color:var(--ink)}
 em{font-style:italic}
 
-ul,ol{margin:0 0 1.15rem;padding-left:1.35rem}
-li{margin:.28rem 0}
+ul,ol{margin:0 0 1.6rem;padding-left:1.55rem}
+li{margin:.55rem 0}
 li::marker{color:var(--muted)}
+/* 巢狀清單：與父項拉開，但不要疊成兩個段落的距離 */
+li > ul,li > ol{margin:.55rem 0 .1rem}
+/* 鬆散清單（項目內含段落）時，段距收窄以免整份清單散掉 */
+li > p{margin:.55rem 0}
+li > p:first-child{margin-top:0}
+li > p:last-child{margin-bottom:0}
+li > pre,li > .tablewrap{margin:.8rem 0}
 
 hr{
   border:0;border-top:1px solid var(--rule);
-  margin:2.6rem 0;
+  margin:3rem 0;
 }
+/* 筆記多以 --- 分節，緊接 h2 時只留一條線 */
+hr + h2{margin-top:2.4rem;padding-top:0;border-top:0}
 
 /* 引文：一條側線，不填色不加圓角 */
 blockquote{
-  margin:1.4rem 0;padding:.15rem 0 .15rem 1.1rem;
+  margin:1.9rem 0;padding:.2rem 0 .2rem 1.35rem;
   border-left:2px solid var(--rule-strong);
   color:var(--ink-2);
 }
+blockquote p{margin-bottom:1.1rem}
 blockquote p:last-child{margin-bottom:0}
 
 /* ---------- 程式碼：直角、細框、淡填色、無陰影 ---------- */
 code,kbd,samp{
-  font-family:var(--mono);font-size:.855em;
+  font-family:var(--mono);font-size:.85em;letter-spacing:0;
 }
+/* 行內碼在中文之間需要外距，否則會黏著前後字 */
 :not(pre) > code{
   background:var(--paper-sunk);
   border:1px solid var(--rule);
-  padding:.08em .34em;
+  padding:.14em .4em;
+  margin:0 .12em;
   border-radius:2px;
   word-break:break-word;
 }
 pre{
-  margin:1.35rem 0;padding:.95rem 1.05rem;
+  margin:1.75rem 0;padding:1.15rem 1.25rem;
   background:var(--paper-sunk);
   border:1px solid var(--rule);
   border-left:2px solid var(--rule-strong);
   border-radius:2px;
   overflow-x:auto;
-  font-size:.845rem;line-height:1.62;
+  font-size:.85rem;line-height:1.75;
+  letter-spacing:0;
 }
-pre code{background:none;border:0;padding:0;font-size:1em}
+pre code{background:none;border:0;padding:0;margin:0;font-size:1em}
 
 /* ---------- 表格：只有細分隔線，沒有外框與彩色表頭 ---------- */
-.tablewrap{overflow-x:auto;margin:1.4rem 0}
+.tablewrap{overflow-x:auto;margin:1.8rem 0}
 table{
   border-collapse:collapse;width:100%;
-  font-size:.895rem;line-height:1.6;
+  font-size:.9rem;line-height:1.78;
 }
 thead th{
-  text-align:left;font-weight:560;font-size:.79rem;
+  text-align:left;font-weight:560;font-size:.78rem;
   letter-spacing:.045em;color:var(--muted);
-  padding:0 .85rem .45rem 0;
+  padding:0 1.1rem .6rem 0;
   border-bottom:1px solid var(--rule-strong);
   white-space:nowrap;
 }
 tbody td{
-  padding:.46rem .85rem .46rem 0;
+  padding:.72rem 1.1rem .72rem 0;
   border-bottom:1px solid var(--rule);
   vertical-align:top;
 }
 tbody tr:last-child td{border-bottom:1px solid var(--rule-strong)}
+tbody td > :last-child{margin-bottom:0}
 /* kramdown 的右對齊欄用於數字：等寬 + 尾端對齊 */
 th[style*="right"],td[style*="right"]{
   text-align:right;font-variant-numeric:tabular-nums;
-  font-family:var(--mono);font-size:.845rem;
-  padding-right:0;white-space:nowrap;
+  font-family:var(--mono);font-size:.85rem;
+  white-space:nowrap;
 }
-table code{font-size:.82em}
+/* 只有最後一欄可以貼齊右緣，中間的右對齊欄留距，否則數字會相黏 */
+tr > th:last-child[style*="right"],tr > td:last-child[style*="right"]{padding-right:0}
+table code{font-size:.83em;margin:0}
 
 img{max-width:100%;height:auto}
+
+/* 螢幕夠寬時，讓表格與程式碼跨出正文欄寬，
+   換取少一點換行——這兩者的擁擠來自水平方向，不是垂直方向 */
+@media (min-width:62rem){
+  /* 表格以正文中線為軸往兩側撐開，上限 66rem；八欄的架構表在 43rem 欄寬下
+     會被壓到每格斷成三行，那是水平方向的擁擠，加行距救不了 */
+  /* 只有真的塞不下的表才破格（.wide 由 layout 的 JS 依欄數與實際寬度掛上）。
+     四欄的表撐到 66rem 只會讓欄距散開，反而更難讀 */
+  main:not(.tool) .tablewrap.wide{
+    --bleed:min(calc(100vw - 3rem),66rem);
+    width:var(--bleed);
+    margin-left:calc(50% - var(--bleed) / 2);
+    padding-bottom:.2rem;
+  }
+  /* rouge 會把 pre 包成 div.highlighter-rouge > div.highlight > pre，
+     只寫 main > pre 在 GitHub Pages 上一條都不會命中 */
+  main:not(.tool) > pre,
+  main:not(.tool) > .highlighter-rouge{
+    width:calc(100% + 7rem);
+    margin-left:-3.5rem;
+  }
+}
+
+/* ---------- 筆記頁章節目錄：上下細線，不做成卡片 ---------- */
+.toc{
+  margin:0 0 2.6rem;
+  padding:.9rem 0 1.1rem;
+  border-top:1px solid var(--rule);
+  border-bottom:1px solid var(--rule);
+}
+.toc-label{
+  display:block;
+  font-size:.75rem;font-weight:600;letter-spacing:.09em;
+  color:var(--muted);
+  margin-bottom:.7rem;
+}
+.toc ol{
+  margin:0;padding:0;list-style:none;
+  counter-reset:toc;
+  font-size:.885rem;line-height:1.6;
+}
+.toc li{
+  margin:.42rem 0;
+  counter-increment:toc;
+  padding-left:1.9rem;
+  text-indent:-1.9rem;
+  break-inside:avoid;
+}
+.toc li::before{
+  content:counter(toc,decimal-leading-zero);
+  display:inline-block;width:1.9rem;text-indent:0;
+  font-family:var(--mono);font-size:.76rem;
+  color:var(--muted);
+}
+.toc a{
+  color:var(--ink-2);border-bottom:1px solid transparent;
+}
+.toc a:hover{color:var(--key);border-bottom-color:var(--key)}
+@media (min-width:46rem){
+  .toc ol{columns:2;column-gap:2.6rem}
+}
+
+/* ---------- 首頁索引：每筆是一個條目，靠細線分條而非靠段距 ---------- */
+body.home main > ul{list-style:none;padding-left:0;margin:0 0 2.2rem}
+body.home main > ul > li{
+  margin:0;padding:1.25rem 0;
+  border-bottom:1px solid var(--rule);
+  color:var(--ink-2);font-size:.94rem;
+}
+body.home main > ul > li:first-child{padding-top:.4rem}
+/* 條目標題吃 ink 與字重，說明文字退到 ink-2；整條不再是一整片橘色。
+   kramdown 對同一份清單會混合輸出 <li><a> 與 <li><p><a>（有空行的項目變 loose），
+   兩種形狀都要吃到，否則會有幾筆維持橘色細字 */
+body.home main > ul > li > a:first-child,
+body.home main > ul > li > p:first-child > a:first-child{
+  color:var(--ink);font-weight:640;font-size:1.04rem;
+  border-bottom-color:transparent;
+}
+body.home main > ul > li > a:first-child:hover,
+body.home main > ul > li > p:first-child > a:first-child:hover{
+  color:var(--key);border-bottom-color:var(--key);
+}
+body.home main > ul > li > p{margin:0}
+body.home main > ul > li > ul{
+  margin:.65rem 0 0;padding-left:1.25rem;
+  font-size:.87rem;color:var(--muted);
+}
+body.home main > ul > li > ul li{margin:.3rem 0}
 
 /* ---------- 頁尾 ---------- */
 footer.site{
   border-top:1px solid var(--rule);
   max-width:var(--measure);
   margin:0 auto;
-  padding:1.5rem var(--gutter) 3rem;
-  color:var(--muted);font-size:.83rem;
+  padding:1.8rem var(--gutter) 3.5rem;
+  color:var(--muted);font-size:.82rem;line-height:1.8;
 }
 footer.site p{margin:.2rem 0}
 footer.site a{color:var(--muted);border-bottom-color:var(--rule)}
@@ -203,15 +318,20 @@ footer.site a:hover{color:var(--key)}
 .wide{max-width:64rem}
 
 @media (max-width:600px){
-  body{font-size:16px;line-height:1.72}
-  h1{font-size:1.6rem}
-  h2{font-size:1.14rem}
-  main{padding-top:2rem}
+  body{font-size:16.5px;line-height:1.88}
+  h1{font-size:1.58rem;margin-bottom:1.5rem}
+  h2{font-size:1.15rem;margin-top:3rem}
+  h3{margin-top:2.2rem}
+  main{padding-top:2.2rem}
+  p,ul,ol{margin-bottom:1.4rem}
 }
 
 @media print{
   header.site nav,footer.site{display:none}
-  body{background:#fff;color:#000;font-size:11pt}
+  body{background:#fff;color:#000;font-size:11pt;line-height:1.65}
   a{color:#000}
   pre,:not(pre) > code{background:#f6f6f6}
+  h2{margin-top:2rem;break-after:avoid}
+  h3{break-after:avoid}
+  pre,.tablewrap{break-inside:avoid}
 }
