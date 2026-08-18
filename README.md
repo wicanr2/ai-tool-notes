@@ -24,6 +24,8 @@ AI 工具與相關工程實務的筆記彙整。
 - [要跑這些模型最少需要多少硬體，在台灣要花多少錢](notes/llm-hardware-cost-2026.md) — 從模型參數推硬體需求的公式（含「只有全域注意力層的 KV 才隨 context 成長」這個常算錯的地方），配 2026-08-18 市價與來源連結，給出五個檔次的新台幣報價（8B 級 NT$8.8 萬 / 26B 級 NT$12.3 萬 / DeepSeek-V4-Flash offload NT$38.6 萬 / 全 GPU NT$302 萬）；指出 DDR5 一年漲 500% 已讓 offload 配置的成本重心從顯卡移到記憶體，並算出自建與租用在不同利用率下的回本點。
   - 互動估算器：[本地 LLM 建置成本估算器](tools/build-cost-calculator.html)（可即時抓匯率、單價可自訂並記住）
 
+- [模型設定檔的每個數字在算什麼](notes/model-config-fields-reference.md) — 把 `config.json` 的欄位接回注意力與 FFN 的實際計算：先寫出 Q/K/V/O 與 FFN 的矩陣形狀，再逐組說明骨架、注意力、MoE、MLA 低秩壓縮、SSM 線性層、位置編碼等欄位各自決定什麼；附 HuggingFace `config.json`／HF API metadata／GGUF metadata 三套來源的欄位對照表（同一件事三種命名，GGUF 的 `key_length` vs `key_length_swa` 反而比 HF 更明確）；以及六個容易踩的地方——`head_dim` 不等於 `hidden_size / heads`、多模態欄位藏在 `text_config`、參數量不能乘 2 要按 dtype 算、`feed_forward_length = 0` 代表純 MoE。
+
 ### Gemma-4 / chat_template 系列
 
 - [vLLM：怎麼用，以及 KV cache 為什麼是它的核心](notes/vllm-serving-and-architecture.md) — 從啟動參數與 OpenAI 相容端點講起，拆解 APIServer/EngineCore 分工、連續批次、prefill 與 decode 的性質差異、CUDA graph 與冷啟動時間組成；再從「自迴歸為何需要 KV cache」推到 PagedAttention，用同一張 L40S 上兩個模型的實測數字（12.75 GiB / 321,600 tokens / 併發 9.81x 對上 22.01 GiB / 1,033,831 tokens / 63.10x）說明 max-model-len 與併發的取捨，並以 config 與 vLLM 原始碼佐證滑動視窗與跨層 KV 共享如何把每 token 成本壓到 22.3 KiB。
