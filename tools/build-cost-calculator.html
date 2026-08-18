@@ -1,0 +1,387 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>本地 LLM 建置成本估算器</title>
+<style>
+:root{
+  --bg:#fff; --fg:#1b1f24; --muted:#5b6672; --line:#dfe3e8;
+  --card:#f7f8fa; --accent:#0b6bcb; --accent-soft:#e8f1fb;
+  --ok:#1a7f4b; --warn:#a35a00; --bad:#b3261e;
+  --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
+    --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
+    --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#12151a; --fg:#e6eaef; --muted:#9aa5b1; --line:#2a3038;
+  --card:#191d24; --accent:#5aa9f5; --accent-soft:#16263a;
+  --ok:#5ec98d; --warn:#e0a95f; --bad:#f2837c;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);line-height:1.6;
+  font-family:system-ui,-apple-system,"Noto Sans TC","Microsoft JhengHei",sans-serif;}
+.wrap{max-width:1120px;margin:0 auto;padding:2rem 1.1rem 4rem}
+h1{font-size:1.6rem;margin:0 0 .3rem;letter-spacing:-.01em}
+.sub{color:var(--muted);margin:0 0 1.2rem;font-size:.95rem}
+.sub a,footer a,.src a{color:var(--accent)}
+.formula{background:var(--card);border:1px solid var(--line);border-left:3px solid var(--accent);
+  border-radius:6px;padding:.85rem 1rem;font-family:var(--mono);font-size:.83rem;
+  overflow-x:auto;white-space:pre;margin:0 0 1.2rem}
+.fxbar{display:flex;flex-wrap:wrap;gap:.6rem;align-items:center;background:var(--accent-soft);
+  border:1px solid var(--line);border-radius:8px;padding:.7rem .9rem;margin-bottom:1.2rem;font-size:.88rem}
+.fxbar button{font:inherit;font-size:.84rem;cursor:pointer;padding:.35rem .8rem;border-radius:6px;
+  border:1px solid var(--accent);background:var(--accent);color:#fff}
+.fxbar button:disabled{opacity:.55;cursor:default}
+.fxbar .st{color:var(--muted);font-size:.82rem}
+.presets{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.3rem}
+.presets button{font:inherit;font-size:.83rem;cursor:pointer;padding:.4rem .8rem;border-radius:999px;
+  border:1px solid var(--line);background:var(--card);color:var(--fg)}
+.presets button:hover{border-color:var(--accent);color:var(--accent)}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:1.1rem}
+fieldset{border:1px solid var(--line);border-radius:8px;padding:.9rem 1rem 1.1rem;margin:0;background:var(--card)}
+legend{padding:0 .45rem;font-weight:600;font-size:.9rem;color:var(--accent)}
+.row{display:grid;grid-template-columns:1fr auto;gap:.5rem;align-items:center;margin:.5rem 0}
+.row label{font-size:.87rem}
+.row .hint{display:block;color:var(--muted);font-size:.75rem;line-height:1.35}
+input[type=number],select{font:inherit;font-family:var(--mono);font-size:.85rem;width:9rem;
+  padding:.28rem .45rem;border:1px solid var(--line);border-radius:5px;background:var(--bg);color:var(--fg)}
+select{width:12rem}
+.out{margin-top:1.4rem;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.out h2{margin:0;padding:.7rem 1.1rem;font-size:.95rem;background:var(--accent-soft);border-bottom:1px solid var(--line)}
+.big{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:1px;background:var(--line)}
+.big div{background:var(--bg);padding:.9rem 1.1rem}
+.big .k{font-size:.77rem;color:var(--muted);margin-bottom:.2rem}
+.big .v{font-family:var(--mono);font-size:1.3rem;font-weight:600;letter-spacing:-.02em}
+.big .u{font-size:.78rem;color:var(--muted)}
+.tblwrap{overflow-x:auto}
+table{width:100%;border-collapse:collapse;font-size:.85rem}
+th,td{padding:.45rem 1.1rem;text-align:left;border-bottom:1px solid var(--line)}
+th{color:var(--muted);font-weight:500;font-size:.79rem}
+td.n{font-family:var(--mono);text-align:right;white-space:nowrap}
+.verdict{padding:.8rem 1.1rem;font-size:.87rem;border-bottom:1px solid var(--line)}
+.verdict.ok{color:var(--ok)}.verdict.warn{color:var(--warn)}.verdict.bad{color:var(--bad)}
+.verdict b{font-family:var(--mono)}
+.src{margin-top:1.6rem;font-size:.83rem;color:var(--muted)}
+.src table{font-size:.82rem}
+footer{margin-top:2rem;color:var(--muted);font-size:.82rem;border-top:1px solid var(--line);padding-top:1rem}
+@media (max-width:520px){input[type=number],select{width:100%}.row{grid-template-columns:1fr;gap:.2rem}}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<h1>本地 LLM 建置成本估算器</h1>
+<p class="sub">
+從模型參數推出硬體需求，再換算建置成本與「自建 vs 租用」的回本點。
+推導與價格來源見 <a href="../notes/llm-hardware-cost-2026.md">要跑這些模型最少需要多少硬體</a>。
+</p>
+
+<pre class="formula">顯存需求 = 參數量 × 每參數位元組 + KV cache
+KV cache = 2 × 全域注意力層數 × (kv_heads × head_dim) × KV精度 × context × 併發數
+GPU 張數 = ceil( 需放進顯存的部分 / 單卡顯存 )
+系統記憶體 = offload 的權重 × 1.25（作業系統、頁面對齊、pinned 額外開銷）
+建置成本 = GPU單價×張數 + RAM每GB×容量 + 平台 + 儲存
+回本月數 = 自建總價 / (雲端每小時 × 730 × 利用率)</pre>
+
+<div class="fxbar">
+  <span>匯率 1 USD =</span>
+  <input type="number" id="fx" step="0.0001" style="width:7rem">
+  <span>TWD</span>
+  <button id="fxBtn">抓取今日匯率</button>
+  <span class="st" id="fxSt"></span>
+</div>
+
+<div class="presets" id="presets"></div>
+
+<div class="grid">
+
+<fieldset>
+<legend>模型與用途</legend>
+<div class="row"><label>總參數量<span class="hint">B（十億）</span></label><input type="number" id="totalP" step="0.1"></div>
+<div class="row"><label>每參數位元組<span class="hint">bf16=2、FP8=1、Q4≈0.53</span></label><input type="number" id="bpp" step="0.01"></div>
+<div class="row"><label>隨 context 成長的 KV 層數<span class="hint">只算全域注意力層；滑動視窗與線性注意力層的 KV 不隨 context 成長</span></label><input type="number" id="kvLayers" step="1"></div>
+<div class="row"><label>kv_heads × head_dim</label><input type="number" id="kvDim" step="1"></div>
+<div class="row"><label>KV 精度（bytes）</label><input type="number" id="kvBytes" step="0.5"></div>
+<div class="row"><label>Context 長度</label><input type="number" id="ctx" step="1024"></div>
+<div class="row"><label>同時併發數</label><input type="number" id="batch" step="1" min="1"></div>
+</fieldset>
+
+<fieldset>
+<legend>部署策略</legend>
+<div class="row">
+  <label>策略</label>
+  <select id="strategy">
+    <option value="gpu">全部進顯存（純 GPU）</option>
+    <option value="offload">DRAM offload（權重放系統記憶體）</option>
+  </select>
+</div>
+<div class="row"><label>顯卡型號</label><select id="gpu"></select></div>
+<div class="row"><label>單卡顯存 GB</label><input type="number" id="vram" step="1"></div>
+<div class="row"><label>顯卡單價 USD</label><input type="number" id="gpuPrice" step="10"></div>
+<div class="row">
+  <label>offload 時留在顯存的比例<span class="hint">熱門專家 + attention，MoE 常見 10–30%</span></label>
+  <input type="number" id="gpuFrac" step="0.05" min="0" max="1">
+</div>
+</fieldset>
+
+<fieldset>
+<legend>零件單價（USD，可自行更新）</legend>
+<div class="row"><label>DDR5 消費級 每 GB</label><input type="number" id="ramGB" step="0.1"></div>
+<div class="row"><label>DDR5 RDIMM 每 GB<span class="hint">伺服器/HEDT 平台用</span></label><input type="number" id="rdimmGB" step="0.1"></div>
+<div class="row">
+  <label>平台等級</label>
+  <select id="platform">
+    <option value="900">消費級 AM5／LGA1851（雙通道）</option>
+    <option value="3500">HEDT Threadripper／EPYC（8 通道 + AVX512）</option>
+    <option value="15000">雙路伺服器（8 卡）</option>
+  </select>
+</div>
+<div class="row"><label>平台價格 USD</label><input type="number" id="platPrice" step="50"></div>
+<div class="row"><label>儲存 USD<span class="hint">NVMe，模型權重要放得下</span></label><input type="number" id="storage" step="50"></div>
+</fieldset>
+
+<fieldset>
+<legend>租用對照</legend>
+<div class="row"><label>雲端每小時 USD<span class="hint">AWS g6e.xlarge 為 1.861</span></label><input type="number" id="cloudHr" step="0.01"></div>
+<div class="row"><label>預期利用率<span class="hint">0.2 = 每天約 5 小時</span></label><input type="number" id="util" step="0.05" min="0.01" max="1"></div>
+</fieldset>
+
+</div>
+
+<div class="out">
+  <h2>估算結果</h2>
+  <div class="big">
+    <div><div class="k">建置總價</div><div class="v" id="oTwd">–</div><div class="u" id="oUsd">&nbsp;</div></div>
+    <div><div class="k">需要顯卡</div><div class="v" id="oGpu">–</div><div class="u">張</div></div>
+    <div><div class="k">系統記憶體</div><div class="v" id="oRam">–</div><div class="u">GB</div></div>
+    <div><div class="k">租用回本</div><div class="v" id="oPay">–</div><div class="u">個月</div></div>
+  </div>
+  <div id="verdicts"></div>
+  <div class="tblwrap"><table>
+    <thead><tr><th>項目</th><th style="text-align:right">USD</th><th style="text-align:right">TWD</th><th>說明</th></tr></thead>
+    <tbody id="detail"></tbody>
+  </table></div>
+</div>
+
+<div class="src">
+  <h3 style="font-size:.95rem;color:var(--fg);margin-bottom:.4rem">價格基準與資料來源</h3>
+  <p>預設單價的基準日為 <b id="baseDate">2026-08-18</b>。2025–2026 年記憶體與顯卡價格波動極大（DDR5 一年漲約 500%），
+  <b>使用前請點開下列來源核對，並直接改上面的欄位</b>——改過的值會存在瀏覽器裡，下次開啟自動帶入。</p>
+  <div class="tblwrap"><table>
+    <thead><tr><th>項目</th><th>基準日單價</th><th>來源</th></tr></thead>
+    <tbody>
+      <tr><td>RTX 5090 32GB（新）</td><td class="n">$4,300–4,900</td><td><a href="https://videocardprices.com/card/nvidia-rtx-5090/" target="_blank" rel="noopener">videocardprices.com</a> · <a href="https://www.techpowerup.com/351508/nvidia-rtx-50-series-median-prices-jump-up-to-41-in-august-with-msrp-now-a-distant-dream" target="_blank" rel="noopener">TechPowerUp</a></td></tr>
+      <tr><td>RTX 4090 24GB（二手）</td><td class="n">$2,000+</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-5090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a></td></tr>
+      <tr><td>RTX 3090 24GB（二手）</td><td class="n">$600–1,050</td><td><a href="https://bestvaluegpu.com/history/new-and-used-rtx-3090-price-history-and-specs/" target="_blank" rel="noopener">BestValueGPU</a> · <a href="https://www.xda-developers.com/used-rtx-3090-still-best-for-local-ai-in-value/" target="_blank" rel="noopener">XDA</a></td></tr>
+      <tr><td>NVIDIA L40S 48GB</td><td class="n">$7,500–10,000</td><td><a href="https://www.thundercompute.com/blog/nvidia-l40-pricing" target="_blank" rel="noopener">Thunder Compute</a> · <a href="https://gpucost.org/gpu/l40s" target="_blank" rel="noopener">GPU Cost</a></td></tr>
+      <tr><td>DDR5 消費級</td><td class="n">約 $13.5 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/ram-price-index-2026-lowest-price-on-ddr5-and-ddr4-memory-of-all-capacities" target="_blank" rel="noopener">Tom's Hardware 價格追蹤</a></td></tr>
+      <tr><td>DDR5 RDIMM</td><td class="n">約 $13.6 / GB</td><td><a href="https://www.tomshardware.com/pc-components/ram/memory-prices-climb-500-percent-in-12-months-up-to-10x-the-lowest-ever-tracked-prices-128gb-of-ddr5-now-usd3-399" target="_blank" rel="noopener">Tom's Hardware</a></td></tr>
+      <tr><td>AWS g6e 每小時</td><td class="n">$1.861（xlarge）<br>$30.13（48xlarge）</td><td><a href="https://instances.vantage.sh/aws/ec2/g6e.xlarge" target="_blank" rel="noopener">Vantage</a></td></tr>
+      <tr><td>USD/TWD 匯率</td><td class="n">即時抓取</td><td><a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener">exchangerate-api.com</a>（每日更新，免費層）</td></tr>
+    </tbody>
+  </table></div>
+</div>
+
+<footer>
+  <p><b>這個估算沒有涵蓋：</b>電費與散熱、機櫃與網路、作業系統與軟體授權、保固與維修、以及顯卡在台灣的實際通路加價
+  （進口稅與營業稅後，本地零售價通常比美金換算高 10–20%）。</p>
+  <p>
+    <a href="../notes/llm-hardware-cost-2026.md">成本推導說明</a> ·
+    <a href="decode-throughput-calculator.html">Decode 速度估算器</a> ·
+    <a href="../">回筆記首頁</a>
+  </p>
+</footer>
+
+</div>
+
+<script>
+"use strict";
+var BASE_DATE = "2026-08-18";
+var FX_FALLBACK = 31.91;
+var LS = "llm-build-cost-v1";
+
+var GPUS = [
+  ["RTX 5090 32GB（新）", 32, 4700],
+  ["RTX 4090 24GB（二手）", 24, 2000],
+  ["RTX 3090 24GB（二手）", 24, 800],
+  ["NVIDIA L40S 48GB", 48, 9000],
+  ["自訂", null, null]
+];
+
+var PRESETS = {
+  "gemma-4-E4B bf16": {
+    totalP:8.0, bpp:2, kvLayers:4, kvDim:512, kvBytes:2, ctx:8192, batch:4,
+    strategy:"gpu", gpu:2, vram:24, gpuPrice:800, gpuFrac:1,
+    platform:"900", platPrice:900, storage:200, cloudHr:1.861, util:0.5
+  },
+  "gemma-4-26B-A4B FP8": {
+    totalP:26.5, bpp:1, kvLayers:5, kvDim:2048, kvBytes:2, ctx:16384, batch:4,
+    strategy:"gpu", gpu:0, vram:32, gpuPrice:4700, gpuFrac:1,
+    platform:"900", platPrice:900, storage:200, cloudHr:1.861, util:0.5
+  },
+  "DeepSeek-V4-Flash offload（單 5090）": {
+    totalP:290.9, bpp:0.53, kvLayers:43, kvDim:576, kvBytes:1, ctx:16384, batch:2,
+    strategy:"offload", gpu:0, vram:32, gpuPrice:4700, gpuFrac:0.15,
+    platform:"3500", platPrice:3500, storage:400, cloudHr:1.861, util:0.5
+  },
+  "DeepSeek-V4-Flash 全 GPU（FP8）": {
+    totalP:290.9, bpp:1, kvLayers:43, kvDim:576, kvBytes:1, ctx:32768, batch:8,
+    strategy:"gpu", gpu:3, vram:48, gpuPrice:9000, gpuFrac:1,
+    platform:"15000", platPrice:15000, storage:800, cloudHr:30.1312, util:0.5
+  },
+  "Kimi-K3 offload（MXFP4）": {
+    totalP:2779.9, bpp:0.53, kvLayers:24, kvDim:576, kvBytes:1, ctx:16384, batch:1,
+    strategy:"offload", gpu:0, vram:32, gpuPrice:4700, gpuFrac:0.05,
+    platform:"15000", platPrice:15000, storage:800, cloudHr:30.1312, util:0.5
+  }
+};
+
+var IDS = ["totalP","bpp","kvLayers","kvDim","kvBytes","ctx","batch","strategy","gpu","vram",
+           "gpuPrice","gpuFrac","ramGB","rdimmGB","platform","platPrice","storage","cloudHr","util","fx"];
+
+function $(id){ return document.getElementById(id); }
+function num(id){ return parseFloat($(id).value) || 0; }
+function fmt(x,d){ return isFinite(x) ? x.toLocaleString("en-US",{minimumFractionDigits:d,maximumFractionDigits:d}) : "–"; }
+
+$("baseDate").textContent = BASE_DATE;
+
+var sel = $("gpu");
+GPUS.forEach(function(g,i){
+  var o=document.createElement("option"); o.value=String(i); o.textContent=g[0]; sel.appendChild(o);
+});
+
+var pbox=$("presets");
+Object.keys(PRESETS).forEach(function(n){
+  var b=document.createElement("button"); b.textContent=n;
+  b.onclick=function(){ applyPreset(n); }; pbox.appendChild(b);
+});
+
+function applyPreset(n){
+  var p=PRESETS[n];
+  Object.keys(p).forEach(function(k){ var el=$(k); if(el) el.value=String(p[k]); });
+  compute();
+}
+
+$("gpu").addEventListener("change", function(){
+  var g=GPUS[parseInt(this.value,10)];
+  if(g[1]!==null){ $("vram").value=String(g[1]); $("gpuPrice").value=String(g[2]); }
+  compute();
+});
+$("platform").addEventListener("change", function(){ $("platPrice").value=this.value; compute(); });
+
+// 匯率：真的去抓，失敗就用基準值
+function fetchFx(){
+  var btn=$("fxBtn"), st=$("fxSt");
+  btn.disabled=true; st.textContent="抓取中…";
+  fetch("https://open.er-api.com/v6/latest/USD")
+    .then(function(r){ return r.json(); })
+    .then(function(d){
+      if(!d.rates || !d.rates.TWD) throw new Error("no rate");
+      $("fx").value=d.rates.TWD.toFixed(4);
+      st.textContent="已更新（來源時間 "+(d.time_last_update_utc||"").slice(0,16)+"）";
+      save(); compute();
+    })
+    .catch(function(){
+      st.textContent="抓取失敗，沿用 "+$("fx").value+"（可手動填）";
+    })
+    .finally(function(){ btn.disabled=false; });
+}
+$("fxBtn").addEventListener("click", fetchFx);
+
+function save(){
+  var o={}; IDS.forEach(function(k){ var el=$(k); if(el) o[k]=el.value; });
+  try{ localStorage.setItem(LS, JSON.stringify(o)); }catch(e){}
+}
+function load(){
+  try{
+    var o=JSON.parse(localStorage.getItem(LS)||"null");
+    if(!o) return false;
+    Object.keys(o).forEach(function(k){ var el=$(k); if(el) el.value=o[k]; });
+    return true;
+  }catch(e){ return false; }
+}
+
+function compute(){
+  var fx=num("fx")||FX_FALLBACK;
+  var totalP=num("totalP"), bpp=num("bpp");
+  var kvLayers=num("kvLayers"), kvDim=num("kvDim"), kvBytes=num("kvBytes"), ctx=num("ctx"), batch=Math.max(1,num("batch"));
+  var offload=$("strategy").value==="offload";
+  var vram=num("vram"), gpuPrice=num("gpuPrice"), gpuFrac=offload?num("gpuFrac"):1;
+  var ramGB=num("ramGB"), rdimmGB=num("rdimmGB"), platPrice=num("platPrice"), storage=num("storage");
+  var cloudHr=num("cloudHr"), util=Math.max(0.01,num("util"));
+
+  var weightGB = totalP*bpp;                                   // 十進位 GB
+  var kvGB = 2*kvLayers*kvDim*kvBytes*ctx*batch/1e9;
+  var inGpuW = weightGB*gpuFrac;
+  var needVram = inGpuW + kvGB;
+  var nGpu = vram>0 ? Math.max(1, Math.ceil(needVram/vram)) : 1;
+
+  var offGB = weightGB*(1-gpuFrac);
+  var ramNeed = offload ? Math.ceil(offGB*1.25/32)*32 : 64;     // 以 32GB 為級距進位
+  var isServerRam = offload || platPrice>=3500;
+  var ramUnit = isServerRam ? rdimmGB : ramGB;
+
+  var cGpu=nGpu*gpuPrice, cRam=ramNeed*ramUnit, cTot=cGpu+cRam+platPrice+storage;
+
+  $("oTwd").textContent = "NT$ "+fmt(cTot*fx,0);
+  $("oUsd").textContent = "US$ "+fmt(cTot,0);
+  $("oGpu").textContent = String(nGpu);
+  $("oRam").textContent = String(ramNeed);
+
+  var monthly = cloudHr*730*util;
+  var payback = monthly>0 ? cTot/monthly : Infinity;
+  $("oPay").textContent = isFinite(payback) ? fmt(payback,1) : "–";
+
+  var vs=[];
+  if(offload){
+    vs.push(["warn","Offload 模式：<b>"+fmt(offGB,0)+" GB</b> 權重放系統記憶體，含 25% 額外開銷後需 <b>"+ramNeed+" GB</b> RAM。"+
+      "記憶體容量是這個路線的硬門檻，通常比速度更早卡住。"]);
+    if(cRam>cGpu) vs.push(["bad","<b>記憶體比顯卡貴</b>：RAM "+fmt(cRam,0)+" USD vs GPU "+fmt(cGpu,0)+" USD。2026 年 DDR5 漲了約 500%，offload 路線的成本重心已經從顯卡移到記憶體。"]);
+    vs.push(["ok","速度取決於記憶體通道數而非顯卡：雙通道約 96 GB/s、八通道約 410 GB/s，差 4.3 倍。"]);
+  }else{
+    vs.push([nGpu<=1?"ok":(nGpu<=2?"warn":"bad"),
+      "需要 <b>"+nGpu+"</b> 張 "+fmt(vram,0)+"GB 顯卡：權重 <b>"+fmt(inGpuW,1)+" GB</b> + KV <b>"+fmt(kvGB,1)+" GB</b> = <b>"+fmt(needVram,1)+" GB</b>。"]);
+    if(kvGB>inGpuW*0.3) vs.push(["warn","KV cache 佔顯存 <b>"+Math.round(kvGB/needVram*100)+"%</b>，縮短 context 或降低併發比加卡便宜。"]);
+  }
+  if(isFinite(payback)){
+    vs.push([payback<=12?"ok":(payback<=24?"warn":"bad"),
+      "以利用率 <b>"+Math.round(util*100)+"%</b> 計，雲端每月 <b>NT$ "+fmt(monthly*fx,0)+"</b>，自建 <b>"+fmt(payback,1)+" 個月</b>回本。"+
+      (payback>24?" 這個利用率下租用較划算。":"")]);
+  }
+  $("verdicts").innerHTML = vs.map(function(v){ return '<div class="verdict '+v[0]+'">'+v[1]+"</div>"; }).join("");
+
+  var rows=[
+    ["顯卡 × "+nGpu, cGpu, "單價 "+fmt(gpuPrice,0)+" × "+nGpu+" 張"],
+    ["系統記憶體 "+ramNeed+" GB", cRam, (isServerRam?"RDIMM":"消費級")+" 每 GB "+fmt(ramUnit,1)],
+    ["平台", platPrice, "CPU + 主板 + 電源 + 機殼"],
+    ["儲存", storage, "NVMe；模型權重約 "+fmt(weightGB,0)+" GB"],
+    ["合計", cTot, "未含電費、機櫃、授權與本地通路加價"]
+  ];
+  $("detail").innerHTML = rows.map(function(r){
+    return "<tr><td>"+r[0]+'</td><td class="n">'+fmt(r[1],0)+'</td><td class="n">'+fmt(r[1]*fx,0)+"</td><td>"+r[2]+"</td></tr>";
+  }).join("");
+
+  save();
+}
+
+IDS.forEach(function(id){
+  var el=$(id); if(!el) return;
+  el.addEventListener("input", compute);
+  el.addEventListener("change", compute);
+});
+
+// 預設值 → 若有存過就蓋掉
+$("fx").value=String(FX_FALLBACK);
+$("ramGB").value="13.5"; $("rdimmGB").value="13.6";
+applyPreset("DeepSeek-V4-Flash offload（單 5090）");
+if(load()) compute();
+fetchFx();
+</script>
+</body>
+</html>

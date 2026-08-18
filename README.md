@@ -21,6 +21,9 @@ AI 工具與相關工程實務的筆記彙整。
 - [量化與 offload：速度算得出來，品質算不出來](notes/quantization-quality-and-offload.md) — 前半用頻寬模型估 offload 速度並對照實測（ktransformers + SGLang 在單張 RTX 5090 上跑 DeepSeek-V4-Flash 達 20+ tok/s，高於公式估的 14–16，差距來自熱點專家動態調度）；後半說明品質為何無法從第一性原理推導、能量的三種代理指標、五個讓退化加劇的因素，以及唯一算得出來的部分——多步任務把每步 1% 的損失在 50 步後放大成 41%。
 - [DRAM offload 專案地圖：把大模型塞進小顯卡](notes/dram-offload-projects.md) — 為什麼 MoE 讓 offload 從不可行變可行、兩種基本策略（搬權重到 GPU 算 vs 留在 CPU 算）的瓶頸差異，以及 llama.cpp / ktransformers / vLLM / MoE-Infinity / PowerInfer / AirLLM 等十個專案的定位與現況（含 star 數與最後更新），最後給選型建議與硬體配置優先序——記憶體通道數比顯卡重要。
 
+- [要跑這些模型最少需要多少硬體，在台灣要花多少錢](notes/llm-hardware-cost-2026.md) — 從模型參數推硬體需求的公式（含「只有全域注意力層的 KV 才隨 context 成長」這個常算錯的地方），配 2026-08-18 市價與來源連結，給出五個檔次的新台幣報價（8B 級 NT$8.8 萬 / 26B 級 NT$12.3 萬 / DeepSeek-V4-Flash offload NT$38.6 萬 / 全 GPU NT$302 萬）；指出 DDR5 一年漲 500% 已讓 offload 配置的成本重心從顯卡移到記憶體，並算出自建與租用在不同利用率下的回本點。
+  - 互動估算器：[本地 LLM 建置成本估算器](tools/build-cost-calculator.html)（可即時抓匯率、單價可自訂並記住）
+
 ### Gemma-4 / chat_template 系列
 
 - [vLLM：怎麼用，以及 KV cache 為什麼是它的核心](notes/vllm-serving-and-architecture.md) — 從啟動參數與 OpenAI 相容端點講起，拆解 APIServer/EngineCore 分工、連續批次、prefill 與 decode 的性質差異、CUDA graph 與冷啟動時間組成；再從「自迴歸為何需要 KV cache」推到 PagedAttention，用同一張 L40S 上兩個模型的實測數字（12.75 GiB / 321,600 tokens / 併發 9.81x 對上 22.01 GiB / 1,033,831 tokens / 63.10x）說明 max-model-len 與併發的取捨，並以 config 與 vLLM 原始碼佐證滑動視窗與跨層 KV 共享如何把每 token 成本壓到 22.3 KiB。
