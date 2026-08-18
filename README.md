@@ -26,6 +26,8 @@ AI 工具與相關工程實務的筆記彙整。
 
 - [讀懂模型設定檔：從欄位到部署決策](notes/model-config-fields-reference.md) — 在不下載權重的前提下回答「塞不塞得下、有多快、引擎撐不撐得住」。先寫出 Q/K/V/O 與 FFN 的矩陣形狀讓每個欄位對應到計算裡的位置，再逐項列出欄位的**英文全名、用途、以及這個數字變了會怎樣**（骨架／注意力／MoE／MLA 與 NSA 稀疏注意力／SSM 線性層／位置編碼／推測解碼）；三段可直接執行並附實測輸出的程式碼——算顯存、算速度、判斷相容性；HF `config.json`／HF API metadata／GGUF 三套來源的欄位對照；縮寫全表與六個容易踩的地方。
 
+- [Attention 的四個軸：FlashAttention 與 Sparse Attention 不是同一類東西](notes/attention-mechanisms-taxonomy.md) — 從 vLLM 一個叫 `flashattn_mla_sparse.py` 的檔名切入：那三個名詞不是三個選項，是三個互相垂直的軸。拆成「怎麼算（FlashAttention/FlashInfer/PagedAttention，輸出不變、部署時可選）」、「存什麼（MHA→GQA→MQA→MLA、KV 共享）」、「看哪些 token（滑動視窗、NSA 動態索引 top-512）」、「換掉機制（線性注意力、SSM/Mamba、GDN、KDA）」四層；說明 FlashAttention 為何是數學等價的重排（tiling + 線上 softmax）卻救不了 KV cache；最後用七個模型的實際組合表證明四軸會同時出現，並指出你能決定的只有第一軸。
+
 ### Gemma-4 / chat_template 系列
 
 - [vLLM：怎麼用，以及 KV cache 為什麼是它的核心](notes/vllm-serving-and-architecture.md) — 從啟動參數與 OpenAI 相容端點講起，拆解 APIServer/EngineCore 分工、連續批次、prefill 與 decode 的性質差異、CUDA graph 與冷啟動時間組成；再從「自迴歸為何需要 KV cache」推到 PagedAttention，用同一張 L40S 上兩個模型的實測數字（12.75 GiB / 321,600 tokens / 併發 9.81x 對上 22.01 GiB / 1,033,831 tokens / 63.10x）說明 max-model-len 與併發的取捨，並以 config 與 vLLM 原始碼佐證滑動視窗與跨層 KV 共享如何把每 token 成本壓到 22.3 KiB。

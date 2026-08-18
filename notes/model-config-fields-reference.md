@@ -10,7 +10,7 @@
 
 實例值取自實際模型設定檔，查證日 **2026-08-18**。
 
-- 相關：[HuggingFace 模型 repo 檔案逐一解說](gemma4-hf-repo-files.md)（每個**檔案**是什麼）、[架構圖鑑](llm-architecture-map-2026.md)、[推論速度怎麼估](llm-decode-throughput-formula.md)
+- 相關：[HuggingFace 模型 repo 檔案逐一解說](gemma4-hf-repo-files.md)（每個**檔案**是什麼）、[Attention 的四個軸](attention-mechanisms-taxonomy.md)（欄位背後的機制分類）、[架構圖鑑](llm-architecture-map-2026.md)、[推論速度怎麼估](llm-decode-throughput-formula.md)
 
 ---
 

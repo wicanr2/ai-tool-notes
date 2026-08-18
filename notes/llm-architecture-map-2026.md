@@ -6,7 +6,7 @@
 
 所有數字取自各模型 HuggingFace repo 的 `config.json` 與官方模型卡，查詢日 **2026-08-18**。其中 gemma-4 全系列、Muse-Glimmer 與 Qwen 3.6/3.8 另以一台實機 Ollama 主機的 GGUF metadata 交叉核對過。
 
-- 相關：[vLLM 架構與 KV cache](vllm-serving-and-architecture.md)、[推論速度怎麼估](llm-decode-throughput-formula.md)、[量化格式](quantization-fp8-nvfp4.md)
+- 相關：[Attention 的四個軸](attention-mechanisms-taxonomy.md)（本文各種注意力機制的分類）、[vLLM 架構與 KV cache](vllm-serving-and-architecture.md)、[推論速度怎麼估](llm-decode-throughput-formula.md)、[量化格式](quantization-fp8-nvfp4.md)
 
 ---
 
