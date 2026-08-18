@@ -70,7 +70,7 @@ and .../site-packages/vllm/transformers_utils/chat_templates/examples/tool_chat_
 抓變更前（`d6436b3`，05-18）與變更後（`6ea8ce9`，07-15）兩個 revision 的 `chat_template.jinja` 直接 diff，四個主題對應 PR 標題「null handling, reasoning preservation, turn-tag balance, input validation」逐一验证：
 
 **1. Null handling（null 處理）**
-- `format_argument` 巨集原本沒有處理 `argument is none` 的分支，None 值會落到最後的 `{{- argument -}}`，被 Jinja2 渲染成字面 `None`（不是合法的 `null`）；新版明確加了 `{%- if argument is none -%}{{- 'null' -}}` 分支。
+{% raw %}- `format_argument` 巨集原本沒有處理 `argument is none` 的分支，None 值會落到最後的 `{{- argument -}}`，被 Jinja2 渲染成字面 `None`（不是合法的 `null`）；新版明確加了 `{%- if argument is none -%}{{- 'null' -}}` 分支。{% endraw %}
 - 大量 `message['tool_calls']`／`message['content']` 的直接索引改成 `message.get('tool_calls')`／`message.get('content')`，避免訊息缺少該欄位時直接 `KeyError` 整個渲染中斷。
 - 系統訊息區塊加了 `messages and messages[0]['role'] in [...]` 的空列表防呆——舊版 `messages` 是空列表時會直接對 `messages[0]` 索引越界。
 
@@ -86,6 +86,7 @@ and .../site-packages/vllm/transformers_utils/chat_templates/examples/tool_chat_
 **4. Input validation（輸入驗證）**
 - 舊版工具呼叫參數若是字串（`function['arguments'] is string`），會**原樣輸出**這段字串；新版明確擋掉這個分支，改丟 `raise_exception`，要求呼叫端必須先把 JSON 字串反序列化成 mapping 才能進樣板：
 
+{% raw %}
   ```jinja
   {%- else -%}
       {{- raise_exception(
@@ -95,6 +96,7 @@ and .../site-packages/vllm/transformers_utils/chat_templates/examples/tool_chat_
       ) -}}
   {%- endif -%}
   ```
+{% endraw %}
 
   這是刻意的「早失敗」設計：與其讓格式不對的參數悄悄混進 prompt，變成訓練分佈外輸入（見第一篇），不如直接在樣板渲染階段就報錯擋下來。
 

@@ -397,6 +397,7 @@ vLLM 同時服務 base 與 adapter 兩個 model id。填錯不會有警告。做
 
 這是最隱蔽的一項。同一個模型有兩份來源不同的 gemma-4 樣板在流通，而它們**不相同**。實際比對 base model repo 的 `chat_template.jinja` 與 vLLM 0.25.1 容器內的 `examples/tool_chat_template_gemma4.jinja`，差異落在 24 行，其中最關鍵的一處出現在生成起點：
 
+{% raw %}
 ```diff
      {%- if not continue_same_model_turn -%}
          {{- '<|turn>' + role + '\n' }}
@@ -405,6 +406,7 @@ vLLM 同時服務 base 與 adapter 兩個 model id。填錯不會有警告。做
 +        {%- endif -%}
      {%- endif -%}
 ```
+{% endraw %}
 
 vLLM 那份在模型該開始生成的位置多插了一個空的 thought channel，HF 那份沒有。也就是說，同一組 messages 經兩份樣板渲染後，模型在最關鍵的那個位置看到的前綴是不一樣的：
 
