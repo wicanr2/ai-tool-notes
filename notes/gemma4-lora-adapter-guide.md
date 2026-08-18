@@ -321,13 +321,47 @@ tok.save_pretrained("/path/to/gemma-4-e4b-it-merged")
 | 2 | PEFT 能否掛載，掛上後是否真的改變輸出 | CPU 上載入 base model + `PeftModel.from_pretrained`，同一 prompt 比對 adapter 開關的 logits | **掛上 132 個模組**，scaling 2.0；logits 最大差異 20.81、平均差異 7.73 |
 | 3 | vLLM 是否支援此模型的 LoRA | 檢查 vLLM 0.25.1 `Gemma4ForConditionalGeneration` 的 `SupportsLoRA` 介面 | **支援**，packed 映射 `qkv_proj → [q_proj, k_proj, v_proj]` |
 | 4 | vLLM 的載入器能否吃下這份 adapter | 直接呼叫 `LoRAModel.from_local_checkpoint`，expected 模組集合按 vLLM 原始碼規則展開 packed 映射 | **載入成功**，132 個模組、rank 8、scaling 2.0，型別分佈 `q_proj:42, o_proj:42, k_proj:24, v_proj:24` |
-| 5 | 端到端 serving | 起一個 vLLM 實例實際發請求 | **未執行**，見下方 |
+| 5 | 端到端 serving | 實際起一個 vLLM 實例（`--enable-lora`），對 base 與 adapter 兩個 model id 發相同請求比對 | **adapter 成功載入並生效**，詳見下方 |
 
 第 2 項的 prompt 用 base model repo 的 `chat_template.jinja` 渲染一組帶工具宣告的訊息，結尾為 `<|turn>model\n`。adapter 開與關預測的下一個 token 都是 `<|tool_call>`，但整體 logits 分佈差異顯著——base model 本來就傾向在這個位置發工具呼叫，adapter 改變的是後續選哪個工具、帶哪些參數，這與該 adapter 交付報告中「剩餘錯誤集中在工具選擇、參數錯誤為零」的描述一致。
 
-第 5 項未執行的原因是顯存：該機唯一一張 L40S 的 46 GB 已被另一個既有的 26B 服務佔用 42.5 GB（`--gpu-memory-utilization 0.92`），只剩 2.9 GB，而 E4B 的 bf16 權重就要約 15 GB。要跑端到端測試必須調整既有服務的顯存配置，屬於會中斷線上服務的動作。
+### 端到端 serving 的觀察
 
-**前四項確立的是：這份 adapter 在檔案格式、張量對應、PEFT 掛載、vLLM 載入四個層面都沒有問題。** 尚未驗證的是 vLLM 執行期把 q/k/v 三個切片打包進單一 `qkv_proj` 層時的行為——本 adapter 有 18 層只有 `q` 而沒有 `k`/`v`，這種不完整的切片組合是 packing 邏輯的邊界情況，靜態載入檢查不到。
+啟動 log 確認 adapter 被接受：
+
+```
+INFO [serving.py:216] Loaded new LoRA adapter: name 'cils-lora', path '/adapter'
+```
+
+`/v1/models` 同時列出兩個 id，adapter 的 `parent` 指向 base：
+
+| id | root | parent |
+|---|---|---|
+| `gemma-4-e4b-it` | `google/gemma-4-E4B-it` | `null` |
+| `cils-lora` | `/adapter` | `gemma-4-e4b-it` |
+
+這也順帶排除了第四節提到的 packing 疑慮——本 adapter 有 18 層只掛 `q` 而沒有 `k`/`v`，vLLM 執行期要把這種不完整的切片組合打包進單一 `qkv_proj` 層，實測未出現任何問題。
+
+A/B 對照用同一組工具宣告（一個查詢類、兩個動作類），temperature 設 0，對兩個 model id 發相同請求：
+
+| 提問 | base 的選擇 | adapter 的選擇 |
+|---|---|---|
+| 查詢某貨架的空儲位 | `get_slots` | `get_slots` |
+| 把某棧板從 A 站搬到 B 站 | `moving_pallet` | `moving_pallet` |
+| 某棧板卡在深料架最裡面 | `retrieve_pallet` | `retrieve_pallet` |
+| 今天天氣如何（工具清單裡沒有對應工具） | 拒答並說明只能處理倉儲任務 | 呼叫了一個不在清單裡的工具 |
+
+三個領域內的問題兩邊選擇一致——這類明確情境 base model 本來就答得出來，adapter 的價值在交付報告所述的邊界案例上，不在這種一眼可判的題目。
+
+真正有訊息量的是第四題。**base model 正確地拒絕呼叫工具，adapter 卻捏造了一個工具清單裡根本不存在的函式。** 為了排除是樣板注入的範例，另外檢查了該 chat template——裡面沒有任何硬寫的函式名，所以這個函式是模型自己生出來的。
+
+這是微調常見的副作用：訓練資料若全是「該呼叫工具」的樣本，模型會學到「走到這個位置就是要發 tool call」，連該說「我沒有這個工具」的場合也不例外。離線評測若只收錄需要工具呼叫的題目，這個退化量不到——評測集裡必須有一批「不該呼叫任何工具」的題目，否則這一類錯誤在上線前是隱形的。
+
+這是單一提問下的單次觀察，還不足以估計發生率。要下結論需要一批範圍外提問，統計 adapter 與 base 的拒答率差異。
+
+多輪的部分，餵給 adapter 一則 `moving_pallet` 被拒的工具回應（`destination is occupied`），它的下一步是呼叫 `get_slots` 查該站點狀態，而不是原樣重試——在這個單一案例上，錯誤後的自我修正行為是合理的。
+
+整趟測試既有服務中斷 5 分 14 秒。
 
 ---
 
