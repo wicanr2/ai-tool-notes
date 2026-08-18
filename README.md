@@ -13,6 +13,10 @@ AI 工具與相關工程實務的筆記彙整。
 
 - [DeepSeek-V4 × J-Space 報告評讀，以及單卡 L40S 能不能自架](notes/deepseek-v4-jspace-report-review.md) — 評讀 2026-08-17 發布的 J-Space 能力釋放報告：摘述「能力實現損失」「Minimal 介面過擬合」「思維鏈二極體」三個主張，並逐項評估證據強度（單次執行無信賴區間、跨廠商欄位非同一 harness、效率表用未公開的統一縮放係數、作者即受測對象、但主動列出六項可證偽條件）。後半用 HF API 的實際張量 dtype 分佈算出 V4-Flash 需 292.5 GB、V4-Pro 需 1,601.9 GB，對上 g6e.xlarge 的 48.3 GB 單卡分別差 6.1 倍與 33.2 倍；並指出 J-Space 是 2.3 MB 的提示詞協定套件，不吃 GPU。
 
+- [推論速度怎麼估：decode 是頻寬問題，不是算力問題](notes/llm-decode-throughput-formula.md) — 為什麼單一請求的生成速度只由記憶體頻寬決定；建立 `tok/s = 頻寬 × MBU / 每 token 讀取位元組` 這條公式，逐層算出 gemma-4-E4B 在 L40S 上每 token 讀 9.05 GB、預測 57–76 tok/s；擴充到 offload 情境（瓶頸是 DRAM 頻寬而非 PCIe），並附 DeepSeek-V4-Flash 在 RTX 5090 + 系統記憶體的估算表與驗證方法。
+  - 互動計算器：[LLM Decode 速度估算器](tools/decode-throughput-calculator.html)（填參數即估速度、判斷顯存夠不夠）
+- [量化格式：FP8、NVFP4，以及模型怎麼搭配](notes/quantization-fp8-nvfp4.md) — 從三份真實設定檔（gemma-4-26B FP8 per-channel、DeepSeek-V4 官方 FP8 block 128×128、NVIDIA NVFP4 group 16）拆解縮放粒度為何比位元數更關鍵、scale 開銷讓 FP4 實際是 0.56 bytes/param、weight-only 與 W8A8/W4A4 的差別、`ignore` 清單揭示哪些層碰不得（router / attention / head）、硬體原生支援如何決定量化划不划算，以及 GGUF K-quant 實測體積表與 LoRA adapter 的精度綁定問題。
+
 ### Gemma-4 / chat_template 系列
 
 - [vLLM：怎麼用，以及 KV cache 為什麼是它的核心](notes/vllm-serving-and-architecture.md) — 從啟動參數與 OpenAI 相容端點講起，拆解 APIServer/EngineCore 分工、連續批次、prefill 與 decode 的性質差異、CUDA graph 與冷啟動時間組成；再從「自迴歸為何需要 KV cache」推到 PagedAttention，用同一張 L40S 上兩個模型的實測數字（12.75 GiB / 321,600 tokens / 併發 9.81x 對上 22.01 GiB / 1,033,831 tokens / 63.10x）說明 max-model-len 與併發的取捨，並以 config 與 vLLM 原始碼佐證滑動視窗與跨層 KV 共享如何把每 token 成本壓到 22.3 KiB。
