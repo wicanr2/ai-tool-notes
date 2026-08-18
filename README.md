@@ -13,6 +13,11 @@ AI 工具與相關工程實務的筆記彙整。
 
 ### Gemma-4 / chat_template 系列
 
+- [在 gemma-4-E4B-it 上掛載 LoRA adapter](notes/gemma4-lora-adapter-guide.md) — 從「base model 與 adapter 各是什麼」講起，逐檔拆解 PEFT 交付物的 `adapter_config.json` / `adapter_model.safetensors` / `native_lora_config.json`，給出 transformers+PEFT、vLLM serving、merge 三條載入路線的可執行指令；附一次在 L40S 上的實測紀錄（張量對應、PEFT 掛載、vLLM 載入器）與五個不會報錯的靜默失效點（模型類別選錯、請求填錯 model id、chat template 版本不一致、量化 base、rank 上限）。
 - [chat_template 是什麼：從「LLM 只吃 token 序列」講起](notes/gemma4-chat-template-first-principles.md) — 第一性原理拆解 chat_template 存在的理由(多輪對話/工具呼叫必須序列化成單一字串)，用 `google/gemma-4-E4B-it` 的真實 Jinja2 樣板實際渲染兩組 messages(純對話、system+tool calling)，並整理 transformers `apply_chat_template` / vLLM serving 何時套用樣板、樣板過舊會出現的症狀。
 - [HuggingFace 模型 repo 檔案逐一解說：以 google/gemma-4-E4B-it 為例](notes/gemma4-hf-repo-files.md) — 把一個 HF 模型 repo 的九個檔案(`config.json`、`tokenizer.json`/`tokenizer_config.json`、`chat_template.jinja`、`processor_config.json`、`model.safetensors` 等)逐一拆解:是什麼、誰讀它、改壞了會怎樣。
 - [gemma-4 chat_template 變更事件：2026 年 7 月前後發生了什麼](notes/gemma4-chat-template-change-incident.md) — 查證後釐清:沒有 commit 精確落在 2026-07-05,實際是兩起事件——07-02~07-07 vLLM 封裝缺檔 + template/parser 版本錯位，與 07-15 HF 官方 `chat_template.jinja` 大改(null 處理/reasoning 保留/turn 標籤配平/輸入驗證)。附逐段 diff 分析、vLLM issue 症狀對照表、通用排查 SOP。
+
+## 線上閱讀
+
+https://wicanr2.github.io/ai-tool-notes/

@@ -1,0 +1,22 @@
+title: AI 工具與工程實務筆記
+description: LLM serving、LoRA 微調、chat template、逆向工程與開發流程的實作筆記
+theme: jekyll-theme-cayman
+lang: zh-TW
+
+plugins:
+  - jekyll-relative-links
+
+relative_links:
+  enabled: true
+  collections: false
+
+include:
+  - README.md
+
+exclude:
+  - gemma-4-lora/
+  - "*.tar.gz"
+  - "*.safetensors"
+  - Gemfile
+  - Gemfile.lock
+  - vendor/

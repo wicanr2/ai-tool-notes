@@ -1,0 +1,5 @@
+# 客戶交付物與內部主機資訊，不進版控
+gemma-4-lora/
+*.tar.gz
+*.safetensors
+*.swp
