@@ -28,6 +28,8 @@ AI 工具與相關工程實務的筆記彙整。
 
 - [Attention 的四個軸：FlashAttention 與 Sparse Attention 不是同一類東西](notes/attention-mechanisms-taxonomy.md) — 從 vLLM 一個叫 `flashattn_mla_sparse.py` 的檔名切入：那三個名詞不是三個選項，是三個互相垂直的軸。拆成「怎麼算（FlashAttention/FlashInfer/PagedAttention，輸出不變、部署時可選）」、「存什麼（MHA→GQA→MQA→MLA、KV 共享）」、「看哪些 token（滑動視窗、NSA 動態索引 top-512）」、「換掉機制（線性注意力、SSM/Mamba、GDN、KDA）」四層；說明 FlashAttention 為何是數學等價的重排（tiling + 線上 softmax）卻救不了 KV cache；最後用七個模型的實際組合表證明四軸會同時出現，並指出你能決定的只有第一軸。
 
+- [Attention 名詞解釋：GQA、MLA、線上 softmax、SSM、DeltaNet、TurboQuant，與硬體世代](notes/attention-terms-explained.md) — 逐個拆機制而非只給定義：GQA 怎麼用頭數比省 KV、MLA 為何是壓縮而非共用（DeepSeek-V4 的 64 倍差距怎麼算出來）、線上 softmax 的修正因子如何讓分塊計算與標準結果數學等價、SSM 的固定狀態換來什麼又失去什麼、DeltaNet 的差分規則為何能主動遺忘（附 vLLM 的 `chunk_gated_delta_rule` 對照）、TurboQuant 用 Lloyd-Max 碼本壓 KV cache；最後是 Ampere/Ada/Hopper/Blackwell 的 `sm_XX` 對照，以及 tilelang 為何以 fallback 身分存在——一個 sparse MLA 機制在 vLLM 裡有六份硬體實作。
+
 ### Gemma-4 / chat_template 系列
 
 - [vLLM：怎麼用，以及 KV cache 為什麼是它的核心](notes/vllm-serving-and-architecture.md) — 從啟動參數與 OpenAI 相容端點講起，拆解 APIServer/EngineCore 分工、連續批次、prefill 與 decode 的性質差異、CUDA graph 與冷啟動時間組成；再從「自迴歸為何需要 KV cache」推到 PagedAttention，用同一張 L40S 上兩個模型的實測數字（12.75 GiB / 321,600 tokens / 併發 9.81x 對上 22.01 GiB / 1,033,831 tokens / 63.10x）說明 max-model-len 與併發的取捨，並以 config 與 vLLM 原始碼佐證滑動視窗與跨層 KV 共享如何把每 token 成本壓到 22.3 KiB。

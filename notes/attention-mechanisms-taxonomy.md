@@ -14,6 +14,7 @@ vllm/v1/attention/backends/mla/flashattn_mla_sparse.py
 
 實例取自 vLLM 0.25.1 與各模型的實際設定檔，查證日 **2026-08-18**。
 
+- **每個名詞的機制細節**：[Attention 名詞解釋](attention-terms-explained.md)（GQA、MLA、線上 softmax、SSM、DeltaNet、TurboQuant、硬體世代與 kernel 可攜性）
 - 相關：[讀懂模型設定檔](model-config-fields-reference.md)、[架構圖鑑](llm-architecture-map-2026.md)、[vLLM 架構與 KV cache](vllm-serving-and-architecture.md)
 
 ---
@@ -106,9 +107,17 @@ vLLM 的後端目錄裡多數檔案都在這一軸：
 | `triton_attn` | 用 Triton 寫的版本，可攜性好、方便客製 |
 | `flex_attention` | PyTorch 的可組合注意力，用來表達自訂 mask 樣式 |
 | `cpu_attn` / `rocm_*` / `xpu_*` | 不同硬體平台的對應實作 |
-| `turboquant_attn` | 針對量化 KV 的實作 |
+| `turboquant_attn` | **例外**：它壓的是 KV cache 本身（Lloyd-Max 量化），會改變輸出，見下方說明 |
 
 **PagedAttention 也在這一軸，但更偏系統層**：它管的是 KV cache 在顯存裡怎麼分頁配置，不改注意力的數學。
+
+### 一個不合分類的例外：執行期 KV 量化
+
+`turboquant_attn` 與 `--kv-cache-dtype fp8` 這類選項落在四軸的縫隙裡：它們是**部署時的選擇**（模型不用重訓，這點像軸一），但**會改變輸出**（量化有損，這點像軸二）。
+
+TurboQuant 的做法是用 Lloyd-Max 最佳量化器求出碼本，把 KV cache 壓縮存放。實測的版面是 head_dim 256 時「K 壓到 100 bytes + V 維持 fp16 512 bytes」，相較全 fp16 的 1024 bytes 省四成。
+
+把它們獨立看待比硬塞進某一軸有用：**這是唯一一類「你可以自己開、但要付品質代價」的注意力相關選項**，該不該開要實測，不能只看容量數字。機制細節見 [名詞解釋](attention-terms-explained.md)。
 
 ---
 
@@ -295,6 +304,7 @@ ssm.group_count     = 16     狀態分組數
 | 你看到 | 它在改 | 輸出會變嗎 |
 |---|---|---|
 | FlashAttention / FlashInfer / Triton / PagedAttention | 怎麼算、怎麼搬記憶體 | **不變** |
+| TurboQuant / `--kv-cache-dtype fp8` | 壓縮 KV cache（部署時可選） | 變（有損量化） |
 | MHA / GQA / MQA / MLA / KV 共享 | KV 存成什麼樣子 | 變（模型層面） |
 | 滑動視窗 / NSA / 各種稀疏樣式 | 注意力看哪些 token | 變（模型層面） |
 | 線性注意力 / SSM / Mamba / GDN / KDA | 不用注意力了 | 變（模型層面） |
