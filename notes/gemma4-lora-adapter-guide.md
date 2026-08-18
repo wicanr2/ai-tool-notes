@@ -270,7 +270,7 @@ vllm serve google/gemma-4-E4B-it \
   --enable-auto-tool-choice \
   --tool-call-parser gemma4 \
   --reasoning-parser gemma4 \
-  --chat-template <與訓練時一致的樣板> \
+  --chat-template /root/.cache/huggingface/hub/models--google--gemma-4-E4B-it/snapshots/<revision>/chat_template.jinja \
   --gpu-memory-utilization 0.85 \
   --max-model-len 32768
 ```
@@ -281,6 +281,8 @@ vllm serve google/gemma-4-E4B-it \
 | `--lora-modules 名稱=路徑` | 註冊 adapter。等號左邊的名稱就是呼叫時要填的 model id |
 | `--max-lora-rank` | 為 LoRA 預先配置的顯存槽寬度，要 ≥ adapter 的 `r`。設小於 8 會直接拒載 |
 | `--max-loras` | 同時可駐留的 adapter 數量 |
+
+`--chat-template` 要明確指向訓練時用的那一份，不要依賴預設。vLLM 容器自帶的 `examples/tool_chat_template_gemma4.jinja` 與 base model repo 的 `chat_template.jinja` 是兩份不同的檔案（差異見第六節），預設行為會隨 vLLM 版本改變，寫死路徑才有可重現性。
 
 呼叫時 `model` 欄位要填 **adapter 名稱**，不是 base model 名稱：
 
@@ -313,7 +315,7 @@ tok.save_pretrained("/path/to/gemma-4-e4b-it-merged")
 
 ## 四、實測紀錄
 
-環境：單張 NVIDIA L40S（46 GB）的 Linux 主機，vLLM 0.25.1，transformers 5.13.1，PEFT 0.19.1，base model 快取 revision `fa62d88d`。
+環境：單張 NVIDIA L40S（46 GB）的 Linux 主機，vLLM 0.25.1，transformers 5.13.1，PEFT 0.19.1，base model 快取 revision `fa62d88d`。第 2 項的 prompt 由 base model repo 的 `chat_template.jinja` 渲染；第 5 項的 vLLM 服務啟動時指定的是容器自帶的 `examples/tool_chat_template_gemma4.jinja`。
 
 | # | 驗證項目 | 方法 | 結果 |
 |---|---|---|---|
@@ -358,6 +360,8 @@ A/B 對照用同一組工具宣告（一個查詢類、兩個動作類），temp
 這是微調常見的副作用：訓練資料若全是「該呼叫工具」的樣本，模型會學到「走到這個位置就是要發 tool call」，連該說「我沒有這個工具」的場合也不例外。離線評測若只收錄需要工具呼叫的題目，這個退化量不到——評測集裡必須有一批「不該呼叫任何工具」的題目，否則這一類錯誤在上線前是隱形的。
 
 這是單一提問下的單次觀察，還不足以估計發生率。要下結論需要一批範圍外提問，統計 adapter 與 base 的拒答率差異。
+
+另有一項限制：這一輪 A/B 是在 vLLM 自帶樣板下量的，而生成起點的前綴會隨樣板不同（見第六節）。**行為層面的觀察必須在與訓練一致的樣板下重量**；掛載與載入層面的結論（第 1～4 項與 adapter 是否生效）不受樣板影響，因為那些是檔案格式與張量對應的事實。
 
 多輪的部分，餵給 adapter 一則 `moving_pallet` 被拒的工具回應（`destination is occupied`），它的下一步是呼叫 `get_slots` 查該站點狀態，而不是原樣重試——在這個單一案例上，錯誤後的自我修正行為是合理的。
 
